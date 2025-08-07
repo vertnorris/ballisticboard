@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { AppSidebar } from '@/components/app-sidebar';
 import { DynamicMapCanvas } from './DynamicMapCanvas';
 import { MapSelector } from '@/components/maps/MapSelector';
+import { GadgetCounter } from './GadgetCounter';
 import { TimerPanel } from './TimerPanel';
 
 import { Button } from '@/components/ui/button';
@@ -15,6 +16,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { ToastProvider } from '@/components/ui/toast';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -69,8 +71,9 @@ export const TacticalBoard: React.FC = () => {
   };
 
   return (
-    <SidebarProvider>
-      <AppSidebar />
+    <ToastProvider>
+      <SidebarProvider>
+        <AppSidebar />
       <SidebarInset>
         {/* Modern Header */}
         <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -228,6 +231,11 @@ export const TacticalBoard: React.FC = () => {
               </div>
             )}
             
+            {/* Gadget Counter */}
+            <div className="absolute bottom-6 left-6 z-20">
+              <GadgetCounter />
+            </div>
+            
 
           </div>
         </div>
@@ -270,5 +278,6 @@ export const TacticalBoard: React.FC = () => {
         </footer>
       </SidebarInset>
     </SidebarProvider>
+    </ToastProvider>
   );
 };

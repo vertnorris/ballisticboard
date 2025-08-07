@@ -2,6 +2,7 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 import { useTacticalBoard } from '@/stores/tactical-board';
+import { useToast } from '@/components/ui/toast';
 import { maps } from '@/data/maps';
 import { gadgets } from '@/data/gadgets';
 import { DrawableElement, TimedElement } from '@/types';
@@ -45,6 +46,7 @@ export const SimpleCanvas: React.FC<SimpleCanvasProps> = ({ width, height }) => 
   const [isDraggingCallout, setIsDraggingCallout] = useState(false);
   const [mapImage, setMapImage] = useState<HTMLImageElement | null>(null);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const { addToast } = useToast();
   
   const {
     selectedMap,
@@ -67,6 +69,7 @@ export const SimpleCanvas: React.FC<SimpleCanvasProps> = ({ width, height }) => 
     removeElements,
     updateCalloutPosition,
     setEditingCallout,
+    getGadgetCount,
   } = useTacticalBoard();
 
   const currentMap = selectedMap;
@@ -502,20 +505,29 @@ export const SimpleCanvas: React.FC<SimpleCanvasProps> = ({ width, height }) => 
           data: { gadgetId: gadget.id },
           zIndex: 1,
         };
-        addElement(newElement);
         
-        // If gadget has duration, also add to timed elements
-        if (gadget.duration && gadget.duration > 0) {
-          const timedElement: TimedElement = {
-            id: generateId(),
-            type: 'gadget',
-            position: snapToGrid(position),
-            gadgetId: gadget.id,
-            duration: gadget.duration,
-            startTime: 0,
-            active: false,
-          };
-          addTimedElement(timedElement);
+        // Try to add element (will check limits)
+        const wasAdded = addElement(newElement);
+        
+        if (wasAdded) {
+          // If gadget has duration, also add to timed elements
+          if (gadget.duration && gadget.duration > 0) {
+            const timedElement: TimedElement = {
+              id: generateId(),
+              type: 'gadget',
+              position: snapToGrid(position),
+              gadgetId: gadget.id,
+              duration: gadget.duration,
+              startTime: 0,
+              active: false,
+            };
+            addTimedElement(timedElement);
+          }
+        } else {
+          // Show limit message
+          const currentCount = getGadgetCount(gadget.id);
+          const maxCount = (gadget.id === 'smoke-grenade' || gadget.id === 'flashbang') ? 10 : 2;
+          addToast(`Limite atingido para ${gadget.name}: ${currentCount}/${maxCount}`, 'warning');
         }
       }
     }

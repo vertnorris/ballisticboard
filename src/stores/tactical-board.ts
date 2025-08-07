@@ -59,7 +59,9 @@ interface TacticalBoardState {
   setSelectedTeam: (team: TeamType) => void;
   setSelectedGadget: (gadgetId: string | null) => void;
   
-  addElement: (element: DrawableElement) => void;
+  getGadgetCount: (gadgetId: string) => number;
+  canAddGadget: (gadgetId: string) => boolean;
+  addElement: (element: DrawableElement) => boolean;
   updateElement: (id: string, updates: Partial<DrawableElement>) => void;
   removeElement: (id: string) => void;
   removeElements: (ids: string[]) => void;
@@ -204,8 +206,39 @@ export const useTacticalBoard = create<TacticalBoardState>((set, get) => ({
   setSelectedTeam: (team) => set({ selectedTeam: team }),
   setSelectedGadget: (gadgetId) => set({ selectedGadget: gadgetId }),
   
+  // Helper function to count gadgets by type
+  getGadgetCount: (gadgetId: string) => {
+    const { elements } = get();
+    return elements.filter(el => 
+      el.type === 'gadget' && el.data?.gadgetId === gadgetId
+    ).length;
+  },
+
+  // Helper function to check if gadget can be added
+  canAddGadget: (gadgetId: string) => {
+    const { getGadgetCount } = get();
+    const currentCount = getGadgetCount(gadgetId);
+    
+    // Special cases for smoke and flashbang (10 each)
+    if (gadgetId === 'smoke-grenade' || gadgetId === 'flashbang') {
+      return currentCount < 10;
+    }
+    
+    // Default limit of 2 for all other gadgets
+    return currentCount < 2;
+  },
+
   addElement: (element) => {
-    const { elements, history, historyIndex } = get();
+    const { elements, history, historyIndex, canAddGadget } = get();
+    
+    // Check gadget limits before adding
+    if (element.type === 'gadget' && element.data?.gadgetId) {
+      if (!canAddGadget(element.data.gadgetId)) {
+        // Don't add if limit is reached
+        return false;
+      }
+    }
+    
     const newElements = [...elements, element];
     const newHistory = history.slice(0, historyIndex + 1);
     newHistory.push(newElements);
@@ -215,6 +248,8 @@ export const useTacticalBoard = create<TacticalBoardState>((set, get) => ({
       history: newHistory,
       historyIndex: newHistory.length - 1,
     });
+    
+    return true;
   },
   
   updateElement: (id, updates) => {
