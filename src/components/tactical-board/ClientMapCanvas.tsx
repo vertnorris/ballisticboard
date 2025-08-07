@@ -36,8 +36,8 @@ export const ClientMapCanvas: React.FC<ClientMapCanvasProps> = ({ width, height 
     setPan,
     addElement,
     updateElement,
-    deleteElements,
-    setSelectedElements,
+    removeElements,
+    selectElements,
   } = useTacticalBoard();
 
   // Dynamically load Konva and react-konva
@@ -64,7 +64,7 @@ export const ClientMapCanvas: React.FC<ClientMapCanvasProps> = ({ width, height 
     loadKonva();
   }, []);
 
-  const currentMap = maps.find(m => m.id === selectedMap);
+  const currentMap = selectedMap ? maps.find(m => m.id === selectedMap.id) : null;
 
   const handleStageClick = (e: any) => {
     if (!isKonvaLoaded || !Konva) return;
@@ -85,9 +85,9 @@ export const ClientMapCanvas: React.FC<ClientMapCanvasProps> = ({ width, height 
       });
 
       if (clickedElement) {
-        setSelectedElements([clickedElement.id]);
+        selectElements([clickedElement.id]);
       } else {
-        setSelectedElements([]);
+        selectElements([]);
       }
     } else if (selectedTool === 'player') {
       // Add player
@@ -97,6 +97,7 @@ export const ClientMapCanvas: React.FC<ClientMapCanvasProps> = ({ width, height 
         position: snapToGrid(position),
         team: selectedTeam,
         data: { name: `Player ${elements.filter(e => e.type === 'player').length + 1}` },
+        zIndex: 1,
       };
       addElement(newElement);
     } else if (selectedTool === 'text') {
@@ -107,6 +108,7 @@ export const ClientMapCanvas: React.FC<ClientMapCanvasProps> = ({ width, height 
         position: snapToGrid(position),
         team: selectedTeam,
         data: { text: 'Texto' },
+        zIndex: 1,
       };
       addElement(newElement);
     }

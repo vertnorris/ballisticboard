@@ -476,6 +476,7 @@ export const SimpleCanvas: React.FC<SimpleCanvasProps> = ({ width, height }) => 
         position: snapToGrid(position),
         team: selectedTeam,
         data: { name: `Player ${elements.filter(e => e.type === 'player').length + 1}` },
+        zIndex: 1,
       };
       addElement(newElement);
     } else if (selectedTool === 'text') {
@@ -486,6 +487,7 @@ export const SimpleCanvas: React.FC<SimpleCanvasProps> = ({ width, height }) => 
         position: snapToGrid(position),
         team: selectedTeam,
         data: { text: 'Texto' },
+        zIndex: 1,
       };
       addElement(newElement);
     } else if (selectedTool === 'gadget' && selectedGadget) {
@@ -498,6 +500,7 @@ export const SimpleCanvas: React.FC<SimpleCanvasProps> = ({ width, height }) => 
           position: snapToGrid(position),
           team: selectedTeam,
           data: { gadgetId: gadget.id },
+          zIndex: 1,
         };
         addElement(newElement);
         

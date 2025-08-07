@@ -70,8 +70,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     undo,
     redo,
     reset,
-    save,
-    exportBoard,
   } = useTacticalBoard()
 
   const handleToolSelect = (toolId: string) => {
@@ -99,10 +97,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         reset()
         break
       case 'save':
-        save()
+        // TODO: Implementar funcionalidade de salvar
+        console.log('Salvar estratégia')
         break
       case 'export':
-        exportBoard()
+        // TODO: Implementar funcionalidade de exportar
+        console.log('Exportar board')
         break
     }
   }

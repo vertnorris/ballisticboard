@@ -35,7 +35,7 @@ import { useTacticalBoard } from '@/stores/tactical-board';
 export const TacticalBoard: React.FC = () => {
   const [canvasSize, setCanvasSize] = useState({ width: 1000, height: 600 });
   const [showTimers, setShowTimers] = useState(false);
-  const { zoom, setZoom, setPan, currentMap, calloutManagementMode, toggleCalloutManagementMode } = useTacticalBoard();
+  const { zoom, setZoom, setPan, selectedMap, calloutManagementMode, toggleCalloutManagementMode } = useTacticalBoard();
 
   useEffect(() => {
     const updateCanvasSize = () => {
@@ -86,7 +86,7 @@ export const TacticalBoard: React.FC = () => {
               </BreadcrumbItem>
               <BreadcrumbSeparator className="hidden md:block" />
               <BreadcrumbItem>
-                <BreadcrumbPage>{currentMap?.name || 'Selecione um Mapa'}</BreadcrumbPage>
+                <BreadcrumbPage>{selectedMap?.name || 'Selecione um Mapa'}</BreadcrumbPage>
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>

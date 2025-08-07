@@ -63,6 +63,7 @@ export interface DrawableElement {
   position: Position;
   data: any;
   zIndex: number;
+  team?: TeamType;
 }
 
 export interface TimedElement {

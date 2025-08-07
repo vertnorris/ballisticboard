@@ -58,7 +58,7 @@ export const MapSelector: React.FC = () => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-foreground truncate">{map.name}</div>
-                  <div className="text-xs text-muted-foreground truncate">{map.description}</div>
+                  <div className="text-xs text-muted-foreground truncate">{map.callouts.length} callouts</div>
                 </div>
               </div>
             </SelectItem>
