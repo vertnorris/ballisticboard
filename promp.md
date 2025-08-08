@@ -1,6 +1,6 @@
 # 🎯 Prompt para Desenvolvimento - Fortnite Ballistic Tactical Board
 
-## 📋 Visão Geral do Projeto
+## 📋 Visão Geral do Projeto!
 
 Desenvolva uma aplicação web interativa de quadro tático para **Fortnite Ballistic**, similar ao csgoboard.com, mas adaptada especificamente para o novo modo 5v5 FPS do Fortnite. A aplicação deve permitir que jogadores e equipes criem, editem e compartilhem estratégias táticas de forma visual e intuitiva.
 

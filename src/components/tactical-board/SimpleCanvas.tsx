@@ -274,97 +274,16 @@ export const SimpleCanvas: React.FC<SimpleCanvasProps> = ({ width, height }) => 
             // Set image source - this will trigger onload
             img.src = gadget.image;
             
-            // Fallback: draw colored circle if image fails to load
+            // No fallback - only show if image loads successfully
             img.onerror = () => {
-              ctx.beginPath();
-              ctx.arc(element.position.x, element.position.y, 12, 0, 2 * Math.PI);
-              
-              // Color based on gadget type
-              let gadgetColor = getCSSVariable('--muted-foreground');
-              switch (gadget.type) {
-                case 'grenade':
-                  gadgetColor = getCSSVariable('--destructive');
-                  break;
-                case 'utility':
-                  gadgetColor = getCSSVariable('--primary');
-                  break;
-                case 'healing':
-                  gadgetColor = getCSSVariable('--success');
-                  break;
-                case 'tactical':
-                  gadgetColor = getCSSVariable('--warning');
-                  break;
-              }
-              
-              ctx.fillStyle = gadgetColor;
-              ctx.fill();
-              
-              // Border
-              ctx.strokeStyle = isSelected ? getCSSVariable('--primary') : getCSSVariable('--foreground');
-              ctx.lineWidth = isSelected ? 3 : 2;
-              ctx.stroke();
-              
-              // Draw gadget name
-              ctx.font = 'bold 8px Arial';
-              ctx.textAlign = 'center';
-              
-              // Text outline
-              ctx.strokeStyle = getCSSVariable('--background');
-              ctx.lineWidth = 2;
-              ctx.strokeText(gadget.name, element.position.x, element.position.y + 20);
-              
-              // Text fill
-              ctx.fillStyle = getCSSVariable('--foreground');
-              ctx.fillText(gadget.name, element.position.x, element.position.y + 20);
+              // Do nothing - gadget won't be visible if image fails to load
             };
           }
           break;
       }
     });
     
-    // Draw timed elements (gadgets with active timers)
-    timedElements.forEach(timedElement => {
-      const gadget = gadgets.find(g => g.id === timedElement.gadgetId);
-      if (!gadget) return;
-      
-      const isActive = timedElement.active;
-      const position = timedElement.position;
-      
-      // Draw timer circle
-      ctx.beginPath();
-      ctx.arc(position.x, position.y, 18, 0, 2 * Math.PI);
-      
-      if (isActive) {
-        // Calculate progress
-        const now = Date.now();
-        const elapsed = (now - timedElement.startTime) / 1000;
-        const progress = Math.min(1, elapsed / timedElement.duration);
-        
-        // Draw progress arc
-        ctx.beginPath();
-        ctx.arc(position.x, position.y, 18, -Math.PI / 2, -Math.PI / 2 + (progress * 2 * Math.PI));
-        ctx.strokeStyle = getCSSVariable('--success');
-        ctx.lineWidth = 4;
-        ctx.stroke();
-        
-        // Draw remaining time
-        const timeLeft = Math.ceil(timedElement.duration - elapsed);
-        ctx.font = 'bold 10px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillStyle = getCSSVariable('--foreground');
-        ctx.strokeStyle = getCSSVariable('--background');
-        ctx.lineWidth = 2;
-        ctx.strokeText(timeLeft.toString(), position.x, position.y + 3);
-        ctx.fillText(timeLeft.toString(), position.x, position.y + 3);
-      } else {
-        // Inactive timer - dashed circle
-        ctx.setLineDash([5, 5]);
-        ctx.strokeStyle = getCSSVariable('--muted-foreground');
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        ctx.setLineDash([]);
-      }
-    });
+    // Timed elements functionality removed - no circular borders for gadgets
     
     // Restore context
     ctx.restore();
