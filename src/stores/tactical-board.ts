@@ -23,6 +23,9 @@ interface TacticalBoardState {
   editingCallout: string | null; // ID do callout sendo editado
   calloutManagementMode: boolean; // Modo de gerenciamento de callouts ativo
   
+  // Onboarding state
+  showOnboarding: boolean;
+  
   // Persistência de callouts customizados
   customCalloutPositions: PersistedCalloutData;
   
@@ -60,6 +63,7 @@ interface TacticalBoardState {
   setSelectedGadget: (gadgetId: string | null) => void;
   
   getGadgetCount: (gadgetId: string) => number;
+  getGadgetLimit: (gadgetId: string) => number;
   canAddGadget: (gadgetId: string) => boolean;
   addElement: (element: DrawableElement) => boolean;
   updateElement: (id: string, updates: Partial<DrawableElement>) => void;
@@ -84,6 +88,9 @@ interface TacticalBoardState {
   deleteStrategy: (id: string) => void;
   
   reset: () => void;
+  
+  // Onboarding actions
+  setShowOnboarding: (show: boolean) => void;
   
   // Persistência manual
   loadCustomCalloutPositions: () => void;
@@ -111,7 +118,7 @@ const saveCalloutPositionsToStorage = (positions: PersistedCalloutData) => {
 };
 
 const initialState = {
-  selectedMap: maps[0],
+  selectedMap: null,
   canvasSize: { width: 1000, height: 600 },
   zoom: 1,
   pan: { x: 0, y: 0 },
@@ -120,6 +127,7 @@ const initialState = {
   editingCallout: null,
   calloutManagementMode: false,
   customCalloutPositions: loadCalloutPositionsFromStorage(),
+  showOnboarding: true, // Mostrar onboarding por padrão para novos usuários
   selectedTool: 'select' as ToolType,
   selectedTeam: 'attacker' as TeamType,
   selectedGadget: null,
@@ -209,46 +217,52 @@ export const useTacticalBoard = create<TacticalBoardState>((set, get) => ({
   // Helper function to count gadgets by type
   getGadgetCount: (gadgetId: string) => {
     const { elements } = get();
-    return elements.filter(el => 
-      el.type === 'gadget' && el.data?.gadgetId === gadgetId
+    return elements.filter(el =>
+      el.type === 'rectangle' && el.gadgetId === gadgetId
     ).length;
+  },
+
+  // Helper function to get gadget limit
+  getGadgetLimit: (gadgetId: string) => {
+    // Special cases for smoke and flashbang (10 each)
+    if (gadgetId === 'smoke-grenade' || gadgetId === 'flashbang') {
+      return 10;
+    }
+
+    // Default limit of 2 for all other gadgets
+    return 2;
   },
 
   // Helper function to check if gadget can be added
   canAddGadget: (gadgetId: string) => {
-    const { getGadgetCount } = get();
+    const { getGadgetCount, getGadgetLimit } = get();
     const currentCount = getGadgetCount(gadgetId);
-    
-    // Special cases for smoke and flashbang (10 each)
-    if (gadgetId === 'smoke-grenade' || gadgetId === 'flashbang') {
-      return currentCount < 10;
-    }
-    
-    // Default limit of 2 for all other gadgets
-    return currentCount < 2;
+    const maxCount = getGadgetLimit(gadgetId);
+
+    return currentCount < maxCount;
   },
 
   addElement: (element) => {
     const { elements, history, historyIndex, canAddGadget } = get();
-    
+
     // Check gadget limits before adding
-    if (element.type === 'gadget' && element.data?.gadgetId) {
-      if (!canAddGadget(element.data.gadgetId)) {
+    if (element.type === 'rectangle' && element.gadgetId) {
+      if (!canAddGadget(element.gadgetId)) {
         // Don't add if limit is reached
         return false;
       }
     }
-    
+
     const newElements = [...elements, element];
     const newHistory = history.slice(0, historyIndex + 1);
     newHistory.push(newElements);
-    
+
     set({
       elements: newElements,
       history: newHistory,
       historyIndex: newHistory.length - 1,
     });
-    
+
     return true;
   },
   
@@ -427,6 +441,8 @@ export const useTacticalBoard = create<TacticalBoardState>((set, get) => ({
       currentStrategy: null,
     });
   },
+  
+  setShowOnboarding: (show) => set({ showOnboarding: show }),
   
   loadCustomCalloutPositions: () => {
     const positions = loadCalloutPositionsFromStorage();

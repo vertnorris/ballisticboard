@@ -14,6 +14,7 @@ export interface Map {
   id: string;
   name: string;
   image: string;
+  thumbnail: string;
   callouts: Callout[];
   spikeSites: Position[];
   spawns: {
@@ -59,11 +60,21 @@ export interface Player {
 
 export interface DrawableElement {
   id: string;
-  type: 'player' | 'movement' | 'text' | 'area' | 'gadget';
-  position: Position;
-  data: any;
-  zIndex: number;
+  type: 'player' | 'movement' | 'text' | 'area' | 'gadget' | 'circle' | 'rectangle' | 'line';
+  x: number;
+  y: number;
+  position?: Position;
+  data?: any;
+  zIndex?: number;
   team?: TeamType;
+  color?: string;
+  radius?: number;
+  width?: number;
+  height?: number;
+  points?: number[];
+  strokeWidth?: number;
+  gadgetId?: string;
+  gadgetType?: GadgetType;
 }
 
 export interface TimedElement {
@@ -103,4 +114,5 @@ export interface ToolConfig {
 }
 
 export type TeamType = 'attacker' | 'defender';
-export type ToolType = 'select' | 'player' | 'movement' | 'text' | 'area' | 'gadget' | 'erase';
+export type ToolType = 'select' | 'player' | 'movement' | 'text' | 'area' | 'gadget' | 'erase' | 'pan' | 'circle' | 'rectangle' | 'line' | 'strategy';
+export type GadgetType = 'breach-charge' | 'claymore' | 'impact-grenade' | 'smoke-grenade' | 'frag-grenade' | 'stun-grenade' | 'drone' | 'camera';

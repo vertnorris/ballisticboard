@@ -25,11 +25,11 @@ export const MapSelector: React.FC = () => {
         <SelectValue placeholder="Selecione um mapa" className="text-foreground">
           {selectedMap && (
             <div className="flex items-center gap-2">
-              <div className="w-5 h-5 rounded overflow-hidden bg-muted flex-shrink-0">
+              <div className="w-8 h-5 rounded-md overflow-hidden bg-muted flex-shrink-0">
                 <Image
-                  src={selectedMap.image}
+                  src={selectedMap.thumbnail}
                   alt={selectedMap.name}
-                  width={20}
+                  width={32}
                   height={20}
                   className="w-full h-full object-cover"
                 />
@@ -47,18 +47,17 @@ export const MapSelector: React.FC = () => {
               className="hover:bg-accent rounded-lg m-1 cursor-pointer p-3"
             >
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg overflow-hidden bg-muted flex-shrink-0">
+                <div className="w-16 h-10 rounded-lg overflow-hidden bg-muted flex-shrink-0">
                   <Image
-                    src={map.image}
+                    src={map.thumbnail}
                     alt={map.name}
-                    width={40}
+                    width={64}
                     height={40}
                     className="w-full h-full object-cover"
                   />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-foreground truncate">{map.name}</div>
-                  <div className="text-xs text-muted-foreground truncate">{map.callouts.length} callouts</div>
                 </div>
               </div>
             </SelectItem>

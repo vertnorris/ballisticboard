@@ -118,3 +118,43 @@ export const downloadImage = (dataUrl: string, filename: string) => {
   link.click();
   document.body.removeChild(link);
 };
+
+/**
+ * Calculate dimensions to fit an image within bounds while preserving aspect ratio
+ */
+export const calculateAspectRatioFit = (
+  srcWidth: number,
+  srcHeight: number,
+  maxWidth: number,
+  maxHeight: number
+): { width: number; height: number; x: number; y: number } => {
+  const ratio = Math.min(maxWidth / srcWidth, maxHeight / srcHeight);
+  const width = srcWidth * ratio;
+  const height = srcHeight * ratio;
+
+  // Center the image within the bounds
+  const x = (maxWidth - width) / 2;
+  const y = (maxHeight - height) / 2;
+
+  return { width, height, x, y };
+};
+
+/**
+ * Calculate dimensions to cover bounds while preserving aspect ratio (may crop)
+ */
+export const calculateAspectRatioCover = (
+  srcWidth: number,
+  srcHeight: number,
+  maxWidth: number,
+  maxHeight: number
+): { width: number; height: number; x: number; y: number } => {
+  const ratio = Math.max(maxWidth / srcWidth, maxHeight / srcHeight);
+  const width = srcWidth * ratio;
+  const height = srcHeight * ratio;
+
+  // Center the image within the bounds
+  const x = (maxWidth - width) / 2;
+  const y = (maxHeight - height) / 2;
+
+  return { width, height, x, y };
+};

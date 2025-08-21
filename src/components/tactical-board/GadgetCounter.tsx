@@ -4,7 +4,7 @@ import { gadgets } from '@/data/gadgets';
 import { Badge } from '@/components/ui/badge';
 
 export const GadgetCounter: React.FC = () => {
-  const { selectedGadget, getGadgetCount } = useTacticalBoard();
+  const { selectedGadget, getGadgetCount, getGadgetLimit, canAddGadget } = useTacticalBoard();
 
   if (!selectedGadget) return null;
 
@@ -12,8 +12,8 @@ export const GadgetCounter: React.FC = () => {
   if (!gadget) return null;
 
   const currentCount = getGadgetCount(selectedGadget);
-  const maxCount = (selectedGadget === 'smoke-grenade' || selectedGadget === 'flashbang') ? 10 : 2;
-  const isAtLimit = currentCount >= maxCount;
+  const maxCount = getGadgetLimit(selectedGadget);
+  const isAtLimit = !canAddGadget(selectedGadget);
 
   return (
     <div className="flex items-center space-x-2 px-3 py-2 bg-card/50 rounded-lg border border-border/30">

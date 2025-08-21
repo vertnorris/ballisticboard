@@ -4,7 +4,8 @@ export const maps: Map[] = [
   {
     id: 'hammer-fall',
     name: 'Hammer Fall',
-    image: '/maps/Hammer_Fall_29_-_Map_-_Ballistic.webp',
+    image: '/maps/hammerfall.avif',
+    thumbnail: '/maps/thumb/Hammer_Fall_29_-_Map_-_Ballistic.webp',
     callouts: [
       { id: 'a-site', name: 'A Site', position: { x: 200, y: 150 } },
       { id: 'b-site', name: 'B Site', position: { x: 600, y: 400 } },
@@ -35,7 +36,8 @@ export const maps: Map[] = [
   {
     id: 'skyline-10',
     name: 'Skyline 10',
-    image: '/maps/Skyline_10_-_Map_-_Ballistic.webp',
+    image: '/maps/skyline10.avif',
+    thumbnail: '/maps/thumb/Skyline_10_-_Location_-_Fortnite.webp',
     callouts: [
       { id: 'a-site', name: 'A Site', position: { x: 180, y: 120 } },
       { id: 'b-site', name: 'B Site', position: { x: 620, y: 380 } },
@@ -66,7 +68,8 @@ export const maps: Map[] = [
   {
     id: 'storm-chaser-cove',
     name: 'Storm Chaser Cove',
-    image: '/maps/Storm_Chaser_Cove_29_-_Map_-_Ballistic.webp',
+    image: '/maps/stormchaser.avif',
+    thumbnail: '/maps/thumb/Storm_Chaser_Cove_29_-_Map_-_Ballistic.webp',
     callouts: [
       { id: 'a-site', name: 'A Site', position: { x: 220, y: 140 } },
       { id: 'b-site', name: 'B Site', position: { x: 580, y: 420 } },
@@ -97,7 +100,8 @@ export const maps: Map[] = [
   {
     id: 'k-zone-commons',
     name: 'K-Zone Commons',
-    image: '/maps/K-Zone_Commons_-_Map_-_Ballistic.webp',
+    image: '/maps/kzone.avif',
+    thumbnail: '/maps/thumb/K-Zone_Commons_29_-_Location_-_Fortnite.webp',
     callouts: [
       { id: 'a-site', name: 'A Site', position: { x: 190, y: 130 } },
       { id: 'b-site', name: 'B Site', position: { x: 610, y: 390 } },
@@ -128,7 +132,8 @@ export const maps: Map[] = [
   {
     id: 'cinderwatch',
     name: 'Cinderwatch',
-    image: '/maps/Cinderwatch_-_Map_-_Ballistic.webp',
+    image: '/maps/cinderwatch.avif',
+    thumbnail: '/maps/thumb/Cinderwatch_29_-_Map_-_Ballistic.webp',
     callouts: [
       { id: 'a-site', name: 'A Site', position: { x: 210, y: 160 } },
       { id: 'b-site', name: 'B Site', position: { x: 590, y: 410 } },

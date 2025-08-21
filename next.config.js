@@ -13,11 +13,11 @@ const nextConfig = {
         os: false,
       };
       
-      // Ignore node-specific modules in client bundle
-      config.externals = config.externals || [];
-      config.externals.push({
-        canvas: 'canvas',
-      });
+      // Configure Konva for browser usage
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        'konva': require.resolve('konva'),
+      };
     }
     return config;
   },

@@ -17,6 +17,8 @@ import {
   Download,
   Timer,
   Settings,
+  PenTool,
+  Hand,
 } from "lucide-react"
 
 import {
@@ -39,16 +41,18 @@ import { gadgets } from "@/data/gadgets"
 
 const tools = [
   { id: 'select', name: 'Selecionar', icon: MousePointer, shortcut: 'V' },
+  { id: 'pan', name: 'Pan', icon: Hand, shortcut: 'H' },
   { id: 'player', name: 'Jogador', icon: Users, shortcut: 'P' },
   { id: 'movement', name: 'Movimento', icon: Move, shortcut: 'M' },
+  { id: 'strategy', name: 'Estratégia', icon: PenTool, shortcut: 'S' },
   { id: 'text', name: 'Texto', icon: Type, shortcut: 'T' },
   { id: 'area', name: 'Área', icon: Square, shortcut: 'A' },
   { id: 'erase', name: 'Apagar', icon: Eraser, shortcut: 'E' },
 ]
 
 const teams = [
-  { id: 'attacker', name: 'Atacante', color: 'bg-orange-500' },
-  { id: 'defender', name: 'Defensor', color: 'bg-blue-500' },
+  { id: 'attacker', name: 'Atacante', color: 'bg-primary' },
+  { id: 'defender', name: 'Defensor', color: 'bg-destructive' },
 ]
 
 const actions = [
@@ -67,6 +71,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     setSelectedTeam,
     selectedGadget,
     setSelectedGadget,
+    getGadgetCount,
+    getGadgetLimit,
+    canAddGadget,
     undo,
     redo,
     reset,
@@ -111,11 +118,17 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
         <div className="flex items-center gap-2 px-2 py-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center">
-            <Target className="h-5 w-5 text-white" />
+          <div className="w-12 h-12 flex items-center justify-center">
+            <Image
+              src="/logosz.svg"
+              alt="Ballistic Board Logo"
+              width={45}
+              height={45}
+              className="object-contain"
+            />
           </div>
           <div className="group-data-[collapsible=icon]:hidden">
-            <h2 className="text-lg font-bold bg-gradient-to-r from-orange-500 to-orange-600 bg-clip-text text-transparent">
+            <h2 className="text-lg font-bold text-foreground">
               Ballistic Board
             </h2>
             <p className="text-xs text-muted-foreground">Tactical Planner</p>
@@ -155,26 +168,42 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarGroupLabel>Gadgets</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {gadgets.map((gadget) => (
-                <SidebarMenuItem key={gadget.id}>
-                  <SidebarMenuButton
-                    onClick={() => handleGadgetSelect(gadget.id)}
-                    isActive={selectedGadget === gadget.id && selectedTool === 'gadget'}
-                    tooltip={`${gadget.name} (${gadget.duration}s)`}
-                  >
-                    <div className="w-4 h-4 relative">
-                      <Image
-                        src={gadget.image}
-                        alt={gadget.name}
-                        width={16}
-                        height={16}
-                        className="object-contain"
-                      />
-                    </div>
-                    <span className="group-data-[collapsible=icon]:hidden">{gadget.name}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {gadgets.map((gadget) => {
+                const currentCount = getGadgetCount(gadget.id);
+                const maxCount = getGadgetLimit(gadget.id);
+                const isAtLimit = !canAddGadget(gadget.id);
+                const isActive = selectedGadget === gadget.id && selectedTool === 'gadget';
+
+                return (
+                  <SidebarMenuItem key={gadget.id}>
+                    <SidebarMenuButton
+                      onClick={() => handleGadgetSelect(gadget.id)}
+                      isActive={isActive}
+                      disabled={isAtLimit && !isActive}
+                      tooltip={`${gadget.name} (${gadget.duration}s) - ${currentCount}/${maxCount}`}
+                      className={isAtLimit && !isActive ? 'opacity-50 cursor-not-allowed' : ''}
+                    >
+                      <div className="w-4 h-4 relative">
+                        <Image
+                          src={gadget.image}
+                          alt={gadget.name}
+                          width={16}
+                          height={16}
+                          className="object-contain"
+                        />
+                      </div>
+                      <span className="group-data-[collapsible=icon]:hidden flex-1">{gadget.name}</span>
+                      <span className={`group-data-[collapsible=icon]:hidden text-xs px-1.5 py-0.5 rounded ${
+                        isAtLimit ? 'bg-destructive text-destructive-foreground' :
+                        currentCount > 0 ? 'bg-secondary text-secondary-foreground' :
+                        'bg-muted text-muted-foreground'
+                      }`}>
+                        {currentCount}/{maxCount}
+                      </span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -202,30 +231,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <Separator />
 
-        {/* Ações */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Ações</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {actions.map((action) => {
-                const Icon = action.icon
-                return (
-                  <SidebarMenuItem key={action.id}>
-                    <SidebarMenuButton
-                      onClick={() => handleAction(action.id)}
-                      tooltip={action.shortcut ? `${action.name} (${action.shortcut})` : action.name}
-                    >
-                      <Icon className="h-4 w-4" />
-                      <span>{action.name}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                )
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
       </SidebarContent>
 
       <SidebarFooter>

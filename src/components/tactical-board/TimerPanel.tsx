@@ -56,10 +56,10 @@ function TimerItem({ element, onActivate, onDeactivate, onRemove }: TimerItemPro
   if (!gadget) return null;
   
   return (
-    <div className="group relative bg-gradient-to-br from-card/80 to-card/40 backdrop-blur-sm border border-border/50 rounded-xl p-4 space-y-3 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 hover:border-primary/20">
+    <div className="group relative bg-card/80 backdrop-blur-sm border border-border/50 rounded-xl p-4 space-y-3 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300 hover:border-primary/20">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
-          <div className="relative w-10 h-10 rounded-lg bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 flex items-center justify-center overflow-hidden">
+          <div className="relative w-10 h-10 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center overflow-hidden">
             <Image 
               src={gadget.image} 
               alt={gadget.name}
@@ -148,9 +148,9 @@ export function TimerPanel() {
   
   if (timedElements.length === 0) {
     return (
-      <div className="bg-gradient-to-br from-card/80 to-card/40 backdrop-blur-sm border border-border/50 rounded-xl p-6">
+      <div className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-xl p-6">
         <div className="text-center text-muted-foreground">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 flex items-center justify-center">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center">
             <Timer className="w-8 h-8 text-primary/60" />
           </div>
           <p className="text-sm font-medium mb-1">Nenhum gadget com timer ativo</p>
@@ -164,10 +164,10 @@ export function TimerPanel() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
             <Timer className="w-4 h-4 text-primary-foreground" />
           </div>
-          <h3 className="text-lg font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+          <h3 className="text-lg font-bold text-foreground">
             Timers Ativos
           </h3>
         </div>
