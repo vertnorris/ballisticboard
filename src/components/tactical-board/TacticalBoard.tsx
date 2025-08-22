@@ -61,11 +61,12 @@ export const TacticalBoard: React.FC = () => {
     setSelectedGadget,
     elements,
     selectedElements,
-    setSelectedElements,
     addElement,
     updateElement,
     removeElement,
-    clearElements,
+    removeElements,
+    selectElements,
+    clearSelection,
     undo,
     redo,
     historyIndex,
@@ -358,17 +359,17 @@ export const TacticalBoard: React.FC = () => {
                   <span className="text-sm font-medium text-muted-foreground">Time:</span>
                   <div className="flex items-center gap-1">
                     <Button
-                      variant={selectedTeam === 'attack' ? 'default' : 'outline'}
+                      variant={selectedTeam === 'attacker' ? 'default' : 'outline'}
                       size="sm"
-                      onClick={() => setSelectedTeam('attack')}
+                      onClick={() => setSelectedTeam('attacker')}
                       className="h-7 px-3 text-xs"
                     >
                       Ataque
                     </Button>
                     <Button
-                      variant={selectedTeam === 'defense' ? 'default' : 'outline'}
+                      variant={selectedTeam === 'defender' ? 'default' : 'outline'}
                       size="sm"
-                      onClick={() => setSelectedTeam('defense')}
+                      onClick={() => setSelectedTeam('defender')}
                       className="h-7 px-3 text-xs"
                     >
                       Defesa
@@ -514,11 +515,8 @@ export const TacticalBoard: React.FC = () => {
                           setZoom={setZoom}
                           setPan={setPan}
                           setSelectedElements={(elements) => {
-                            setSelectedElements(elements.map(el => el.id));
+                            selectElements(elements.map(el => el.id));
                           }}
-                          onAddElement={addElement}
-                          onUpdateElement={updateElement}
-                          onRemoveElement={removeElement}
                         />
                       </div>
                     </div>

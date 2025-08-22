@@ -114,5 +114,5 @@ export interface ToolConfig {
 }
 
 export type TeamType = 'attacker' | 'defender';
-export type ToolType = 'select' | 'player' | 'gadget' | 'text' | 'rectangle' | 'circle' | 'line' | 'pan';
+export type ToolType = 'select' | 'player' | 'gadget' | 'text' | 'rectangle' | 'circle' | 'line' | 'pan' | 'strategy';
 export type GadgetType = 'breach-charge' | 'claymore' | 'impact-grenade' | 'smoke-grenade' | 'frag-grenade' | 'stun-grenade' | 'drone' | 'camera';
