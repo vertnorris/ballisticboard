@@ -14,7 +14,7 @@ export const gadgets: GadgetItem[] = [
     name: 'Bubble Shield',
     type: 'utility',
     image: '/itens/Bubble_Shield_29_-_Item_-_Ballistic.webp',
-    description: 'Escudo protetor temporário',
+    description: 'Escudo temporário',
     duration: 15,
     customizable: true
   },
@@ -23,7 +23,7 @@ export const gadgets: GadgetItem[] = [
     name: 'Fire Grenade',
     type: 'grenade',
     image: '/itens/Fire_Grenade_-_Item_-_Ballistic.webp',
-    description: 'Granada incendiária que causa dano por área',
+    description: 'Dano incendiário',
     duration: 8,
     customizable: true
   },
@@ -32,7 +32,7 @@ export const gadgets: GadgetItem[] = [
     name: 'Flashbang',
     type: 'tactical',
     image: '/itens/Flashbang_-_Item_-_Ballistic.webp',
-    description: 'Granada que cega e ensurdece inimigos',
+    description: 'Cega inimigos',
     duration: 3,
     customizable: false
   },
@@ -41,7 +41,7 @@ export const gadgets: GadgetItem[] = [
     name: 'Frag Grenade',
     type: 'grenade',
     image: '/itens/Frag_Grenade_-_Item_-_Ballistic.webp',
-    description: 'Granada explosiva com dano em área',
+    description: 'Explosão em área',
     duration: 0,
     customizable: false
   },
@@ -50,7 +50,7 @@ export const gadgets: GadgetItem[] = [
     name: 'Impulse Grenade',
     type: 'utility',
     image: '/itens/Impulse_Grenade_29_-_Item_-_Ballistic.webp',
-    description: 'Granada que empurra jogadores e objetos',
+    description: 'Empurra jogadores',
     duration: 0,
     customizable: false
   },
@@ -59,7 +59,7 @@ export const gadgets: GadgetItem[] = [
     name: 'Med-Mist Smoke Grenade',
     type: 'healing',
     image: '/itens/Med-Mist_Smoke_Grenade_-_Item_-_Ballistic.webp',
-    description: 'Fumaça que cura aliados na área',
+    description: 'Fumaça curativa',
     duration: 12,
     customizable: true
   },
@@ -68,7 +68,7 @@ export const gadgets: GadgetItem[] = [
     name: 'Overdrive',
     type: 'utility',
     image: '/itens/Overdrive_-_Item_-_Ballistic.webp',
-    description: 'Aumenta velocidade de movimento e recarga',
+    description: 'Boost de velocidade',
     duration: 10,
     customizable: true
   },
@@ -77,7 +77,7 @@ export const gadgets: GadgetItem[] = [
     name: 'Proximity Mine',
     type: 'tactical',
     image: '/itens/Proximity_Mine_-_Item_-_Ballistic.webp',
-    description: 'Mina que explode quando inimigos se aproximam',
+    description: 'Mina de proximidade',
     duration: 60,
     customizable: true
   },
@@ -86,7 +86,7 @@ export const gadgets: GadgetItem[] = [
     name: 'Recon Grenade',
     type: 'tactical',
     image: '/itens/Recon_Grenade_-_Item_-_Ballistic.webp',
-    description: 'Revela inimigos em uma área',
+    description: 'Revela inimigos',
     duration: 8,
     customizable: true
   },
@@ -95,7 +95,7 @@ export const gadgets: GadgetItem[] = [
     name: 'Smoke Grenade',
     type: 'utility',
     image: '/itens/Smoke_Grenade_-_Item_-_Ballistic.webp',
-    description: 'Cria uma cortina de fumaça para cobertura',
+    description: 'Cortina de fumaça',
     duration: 15,
     customizable: true
   }

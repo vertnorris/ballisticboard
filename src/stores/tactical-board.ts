@@ -91,6 +91,7 @@ interface TacticalBoardState {
   
   // Onboarding actions
   setShowOnboarding: (show: boolean) => void;
+  completeOnboarding: () => void;
   
   // Persistência manual
   loadCustomCalloutPositions: () => void;
@@ -105,6 +106,35 @@ const loadCalloutPositionsFromStorage = (): PersistedCalloutData => {
     return stored ? JSON.parse(stored) : {};
   } catch {
     return {};
+  }
+};
+
+const loadOnboardingStatusFromStorage = (): boolean => {
+  if (typeof window === 'undefined') return true;
+  
+  try {
+    const stored = localStorage.getItem('tacticalBoard_onboardingCompleted');
+    if (!stored) return true; // Mostrar onboarding se nunca foi completado
+    
+    const completedAt = parseInt(stored);
+    const now = Date.now();
+    const tenMinutes = 10 * 60 * 1000; // 10 minutos em millisegundos
+    
+    // Se passou mais de 10 minutos desde a última vez, mostrar novamente
+    return (now - completedAt) > tenMinutes;
+  } catch (error) {
+    console.error('Erro ao carregar status do onboarding:', error);
+    return true;
+  }
+};
+
+const saveOnboardingCompletedToStorage = () => {
+  if (typeof window === 'undefined') return;
+  
+  try {
+    localStorage.setItem('tacticalBoard_onboardingCompleted', Date.now().toString());
+  } catch (error) {
+    console.error('Erro ao salvar status do onboarding:', error);
   }
 };
 
@@ -127,7 +157,7 @@ const initialState = {
   editingCallout: null,
   calloutManagementMode: false,
   customCalloutPositions: loadCalloutPositionsFromStorage(),
-  showOnboarding: true, // Mostrar onboarding por padrão para novos usuários
+  showOnboarding: loadOnboardingStatusFromStorage(), // Verificar localStorage para decidir se mostra onboarding
   selectedTool: 'select' as ToolType,
   selectedTeam: 'attacker' as TeamType,
   selectedGadget: null,
@@ -443,6 +473,10 @@ export const useTacticalBoard = create<TacticalBoardState>((set, get) => ({
   },
   
   setShowOnboarding: (show) => set({ showOnboarding: show }),
+  completeOnboarding: () => {
+    saveOnboardingCompletedToStorage();
+    set({ showOnboarding: false });
+  },
   
   loadCustomCalloutPositions: () => {
     const positions = loadCalloutPositionsFromStorage();

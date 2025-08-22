@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { DrawableElement, Gadget, TeamType, Map, GadgetType } from '@/types';
+import { DrawableElement, Gadget, TeamType, Map, GadgetType, Position } from '@/types';
 import { useTacticalBoard } from '@/stores/tactical-board';
 import { getGadgetById } from '@/data/gadgets';
+import { TextInputModal } from './TextInputModal';
 
 // Helper function to get CSS color values
 const getCSSColor = (variable: string): string => {
@@ -55,6 +56,18 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
   const [draggedElement, setDraggedElement] = useState<DrawableElement | null>(null);
   const [dragOffset, setDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [cursorStyle, setCursorStyle] = useState<string>('crosshair');
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [currentPath, setCurrentPath] = useState<number[]>([]);
+  const [isResizing, setIsResizing] = useState(false);
+  const [resizingElement, setResizingElement] = useState<DrawableElement | null>(null);
+  const [resizeStartPos, setResizeStartPos] = useState<Position>({ x: 0, y: 0 });
+  const [isResizingSelected, setIsResizingSelected] = useState(false);
+  const [resizeHandle, setResizeHandle] = useState<string | null>(null);
+  const [originalSize, setOriginalSize] = useState<{ width?: number; height?: number; radius?: number }>({});
+  
+  // Text modal states
+  const [isTextModalOpen, setIsTextModalOpen] = useState(false);
+  const [textPosition, setTextPosition] = useState<{ x: number; y: number } | null>(null);
 
   // Load map image
   useEffect(() => {
@@ -204,6 +217,40 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
     return null;
   }, [elements]);
 
+  // Helper function to detect resize handle clicks
+  const findResizeHandle = useCallback((x: number, y: number, element: DrawableElement): string | null => {
+    if (!selectedElements.some(sel => sel.id === element.id)) return null;
+    
+    if (element.type === 'circle') {
+      const radius = element.radius || 10;
+      const handleSize = 6;
+      
+      // Check each handle
+      if (Math.abs(x - (element.x + radius)) < handleSize && Math.abs(y - element.y) < handleSize) return 'right';
+      if (Math.abs(x - (element.x - radius)) < handleSize && Math.abs(y - element.y) < handleSize) return 'left';
+      if (Math.abs(x - element.x) < handleSize && Math.abs(y - (element.y + radius)) < handleSize) return 'bottom';
+      if (Math.abs(x - element.x) < handleSize && Math.abs(y - (element.y - radius)) < handleSize) return 'top';
+    } else if (element.type === 'rectangle') {
+      const w = element.width || 20;
+      const h = element.height || 20;
+      const handleSize = 6;
+      
+      // Check corner handles
+      if (Math.abs(x - (element.x - w/2)) < handleSize && Math.abs(y - (element.y - h/2)) < handleSize) return 'top-left';
+      if (Math.abs(x - (element.x + w/2)) < handleSize && Math.abs(y - (element.y - h/2)) < handleSize) return 'top-right';
+      if (Math.abs(x - (element.x - w/2)) < handleSize && Math.abs(y - (element.y + h/2)) < handleSize) return 'bottom-left';
+      if (Math.abs(x - (element.x + w/2)) < handleSize && Math.abs(y - (element.y + h/2)) < handleSize) return 'bottom-right';
+      
+      // Check side handles
+      if (Math.abs(x - element.x) < handleSize && Math.abs(y - (element.y - h/2)) < handleSize) return 'top';
+      if (Math.abs(x - element.x) < handleSize && Math.abs(y - (element.y + h/2)) < handleSize) return 'bottom';
+      if (Math.abs(x - (element.x - w/2)) < handleSize && Math.abs(y - element.y) < handleSize) return 'left';
+      if (Math.abs(x - (element.x + w/2)) < handleSize && Math.abs(y - element.y) < handleSize) return 'right';
+    }
+    
+    return null;
+  }, [selectedElements]);
+
   // Draw function
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -253,13 +300,36 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
           case 'circle':
             ctx.beginPath();
             ctx.arc(element.x, element.y, element.radius || 10, 0, 2 * Math.PI);
+            
+            // Fill with transparent team color
+            const circleTeamColor = element.team === 'attacker' ? 'rgba(255, 68, 68, 0.3)' : 'rgba(68, 68, 255, 0.3)';
+            ctx.fillStyle = circleTeamColor;
             ctx.fill();
+            
+            // Draw border with solid team color
+            ctx.strokeStyle = element.team === 'attacker' ? '#ff4444' : '#4444ff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
             break;
             
           case 'rectangle':
             const width = element.width || 20;
             const height = element.height || 20;
+            
+            // Fill with transparent team color
+            const rectTeamColor = element.team === 'attacker' ? 'rgba(255, 68, 68, 0.3)' : 'rgba(68, 68, 255, 0.3)';
+            ctx.fillStyle = rectTeamColor;
             ctx.fillRect(
+              element.x - width / 2,
+              element.y - height / 2,
+              width,
+              height
+            );
+            
+            // Draw border with solid team color
+            ctx.strokeStyle = element.team === 'attacker' ? '#ff4444' : '#4444ff';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(
               element.x - width / 2,
               element.y - height / 2,
               width,
@@ -269,6 +339,8 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
             
           case 'line':
             if (element.points && element.points.length >= 4) {
+              ctx.lineCap = 'round';
+              ctx.lineJoin = 'round';
               ctx.beginPath();
               ctx.moveTo(element.points[0], element.points[1]);
               for (let i = 2; i < element.points.length; i += 2) {
@@ -279,8 +351,27 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
             break;
             
           case 'text':
-            ctx.font = '16px Arial';
-            ctx.fillText(element.data?.text || 'Text', element.x, element.y);
+            const fontSize = element.data?.fontSize || 14;
+            const fontWeight = element.data?.fontWeight || 'normal';
+            const fontStyle = element.data?.fontStyle || 'normal';
+            const textContent = element.data?.text || 'Text';
+            
+            // Set font with all properties
+            ctx.font = `${fontStyle} ${fontWeight} ${fontSize}px Arial`;
+            ctx.fillStyle = element.color || '#000000';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            // Handle multi-line text
+            const lines = textContent.split('\n');
+            const lineHeight = fontSize * 1.2;
+            const totalHeight = lines.length * lineHeight;
+            const startY = element.y - (totalHeight / 2) + (lineHeight / 2);
+            
+            lines.forEach((line: string, index: number) => {
+              const y = startY + (index * lineHeight);
+              ctx.fillText(line, element.x, y);
+            });
             break;
             
           case 'player':
@@ -359,6 +450,15 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
               ctx.beginPath();
               ctx.arc(element.x, element.y, (element.radius || 10) + 5, 0, 2 * Math.PI);
               ctx.stroke();
+              
+              // Draw resize handles for circles
+              ctx.setLineDash([]);
+              ctx.fillStyle = '#00ff00';
+              const radius = element.radius || 10;
+              ctx.fillRect(element.x + radius - 3, element.y - 3, 6, 6); // Right handle
+              ctx.fillRect(element.x - radius - 3, element.y - 3, 6, 6); // Left handle
+              ctx.fillRect(element.x - 3, element.y + radius - 3, 6, 6); // Bottom handle
+              ctx.fillRect(element.x - 3, element.y - radius - 3, 6, 6); // Top handle
               break;
               
             case 'rectangle':
@@ -370,6 +470,22 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
                 width + 10,
                 height + 10
               );
+              
+              // Draw resize handles for rectangles
+              ctx.setLineDash([]);
+              ctx.fillStyle = '#00ff00';
+              const w = element.width || 20;
+              const h = element.height || 20;
+              // Corner handles
+              ctx.fillRect(element.x - w/2 - 3, element.y - h/2 - 3, 6, 6); // Top-left
+              ctx.fillRect(element.x + w/2 - 3, element.y - h/2 - 3, 6, 6); // Top-right
+              ctx.fillRect(element.x - w/2 - 3, element.y + h/2 - 3, 6, 6); // Bottom-left
+              ctx.fillRect(element.x + w/2 - 3, element.y + h/2 - 3, 6, 6); // Bottom-right
+              // Side handles
+              ctx.fillRect(element.x - 3, element.y - h/2 - 3, 6, 6); // Top
+              ctx.fillRect(element.x - 3, element.y + h/2 - 3, 6, 6); // Bottom
+              ctx.fillRect(element.x - w/2 - 3, element.y - 3, 6, 6); // Left
+              ctx.fillRect(element.x + w/2 - 3, element.y - 3, 6, 6); // Right
               break;
               
             case 'player':
@@ -380,12 +496,35 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
               break;
               
             case 'text':
+              const textFontSize = element.data?.fontSize || 14;
+              const textContent = element.data?.text || 'Text';
+              const textLines = textContent.split('\n');
+              const textLineHeight = textFontSize * 1.2;
+              const textTotalHeight = textLines.length * textLineHeight;
+              
+              // Calculate text width (approximate)
+              ctx.font = `${element.data?.fontStyle || 'normal'} ${element.data?.fontWeight || 'normal'} ${textFontSize}px Arial`;
+              const maxLineWidth = Math.max(...textLines.map((line: string) => ctx.measureText(line).width));
+              
+              // Draw selection rectangle around text
+              const padding = 5;
               ctx.strokeRect(
-                element.x - 5,
-                element.y - 20,
-                100,
-                25
+                element.x - maxLineWidth/2 - padding,
+                element.y - textTotalHeight/2 - padding,
+                maxLineWidth + padding * 2,
+                textTotalHeight + padding * 2
               );
+              
+              // Draw resize handles for text
+              ctx.setLineDash([]);
+              ctx.fillStyle = '#00ff00';
+              const textWidth = maxLineWidth + padding * 2;
+              const textHeight = textTotalHeight + padding * 2;
+              // Corner handles
+              ctx.fillRect(element.x - textWidth/2 - 3, element.y - textHeight/2 - 3, 6, 6); // Top-left
+              ctx.fillRect(element.x + textWidth/2 - 3, element.y - textHeight/2 - 3, 6, 6); // Top-right
+              ctx.fillRect(element.x - textWidth/2 - 3, element.y + textHeight/2 - 3, 6, 6); // Bottom-left
+              ctx.fillRect(element.x + textWidth/2 - 3, element.y + textHeight/2 - 3, 6, 6); // Bottom-right
               break;
           }
           
@@ -396,9 +535,67 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
       });
     }
     
+    // Draw current path being drawn
+    if (isDrawing && currentPath.length >= 4) {
+      ctx.save();
+      ctx.strokeStyle = selectedTeam === 'attacker' ? '#ff4444' : '#4444ff';
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      
+      ctx.beginPath();
+      ctx.moveTo(currentPath[0], currentPath[1]);
+      for (let i = 2; i < currentPath.length; i += 2) {
+        ctx.lineTo(currentPath[i], currentPath[i + 1]);
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+    
+    // Draw element being resized
+    if (isResizing && resizingElement) {
+      ctx.save();
+      
+      if (resizingElement.type === 'circle') {
+        ctx.beginPath();
+        ctx.arc(resizingElement.x, resizingElement.y, resizingElement.radius || 10, 0, 2 * Math.PI);
+        
+        const circleTeamColor = resizingElement.team === 'attacker' ? 'rgba(255, 68, 68, 0.3)' : 'rgba(68, 68, 255, 0.3)';
+        ctx.fillStyle = circleTeamColor;
+        ctx.fill();
+        
+        ctx.strokeStyle = resizingElement.team === 'attacker' ? '#ff4444' : '#4444ff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      } else if (resizingElement.type === 'rectangle') {
+        const width = resizingElement.width || 20;
+        const height = resizingElement.height || 20;
+        
+        const rectTeamColor = resizingElement.team === 'attacker' ? 'rgba(255, 68, 68, 0.3)' : 'rgba(68, 68, 255, 0.3)';
+        ctx.fillStyle = rectTeamColor;
+        ctx.fillRect(
+          resizingElement.x - width / 2,
+          resizingElement.y - height / 2,
+          width,
+          height
+        );
+        
+        ctx.strokeStyle = resizingElement.team === 'attacker' ? '#ff4444' : '#4444ff';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(
+          resizingElement.x - width / 2,
+          resizingElement.y - height / 2,
+          width,
+          height
+        );
+      }
+      
+      ctx.restore();
+    }
+    
     // Restore context state
     ctx.restore();
-  }, [elements, mapImage, zoom, pan]);
+  }, [elements, mapImage, zoom, pan, isDrawing, currentPath, selectedTeam, isResizing, resizingElement]);
 
   // Mouse event handlers
   const handleMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -421,20 +618,46 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
       // Handle element selection and dragging
       const clickedElement = findElementAt(worldX, worldY);
       if (clickedElement) {
-        // Check if clicked element is already selected
-        const isAlreadySelected = selectedElements.some(el => el.id === clickedElement.id);
+        // Check if clicking on a resize handle first
+        const handle = findResizeHandle(worldX, worldY, clickedElement);
         
-        if (isAlreadySelected) {
-          // Start dragging the selected element
-          setIsDragging(true);
-          setDraggedElement(clickedElement);
-          setDragOffset({
-            x: worldX - clickedElement.x,
-            y: worldY - clickedElement.y
+        if (handle && (clickedElement.type === 'circle' || clickedElement.type === 'rectangle')) {
+          // Start resizing
+          setIsResizingSelected(true);
+          setResizeHandle(handle);
+          setResizeStartPos({ x: worldX, y: worldY });
+          setOriginalSize({
+            width: clickedElement.width,
+            height: clickedElement.height,
+            radius: clickedElement.radius
           });
-        } else {
-          // Select the clicked element
           setSelectedElements([clickedElement]);
+        } else {
+          // Normal selection/dragging
+          if (e.ctrlKey || e.metaKey) {
+            // Multi-select
+            if (selectedElements.some((sel: DrawableElement) => sel.id === clickedElement.id)) {
+              setSelectedElements(selectedElements.filter((sel: DrawableElement) => sel.id !== clickedElement.id));
+            } else {
+              setSelectedElements([...selectedElements, clickedElement]);
+            }
+          } else {
+            // Check if clicked element is already selected
+            const isAlreadySelected = selectedElements.some(el => el.id === clickedElement.id);
+            
+            if (isAlreadySelected) {
+              // Start dragging the selected element
+              setIsDragging(true);
+              setDraggedElement(clickedElement);
+              setDragOffset({
+                x: worldX - clickedElement.x,
+                y: worldY - clickedElement.y
+              });
+            } else {
+              // Select the clicked element
+              setSelectedElements([clickedElement]);
+            }
+          }
         }
       } else {
         setSelectedElements([]);
@@ -451,16 +674,9 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
       };
       addElement(newPlayer);
     } else if (selectedTool === 'text') {
-      // Add text element
-      const newText: DrawableElement = {
-        id: `text-${Date.now()}`,
-        type: 'text',
-        x: worldX,
-        y: worldY,
-        data: { text: 'Novo Texto' },
-        color: '#000000'
-      };
-      addElement(newText);
+      // Open text modal
+      setTextPosition({ x: worldX, y: worldY });
+      setIsTextModalOpen(true);
     } else if (selectedTool === 'circle') {
       // Add circle element
       const newCircle: DrawableElement = {
@@ -470,21 +686,16 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
         y: worldY,
         radius: 30,
         color: selectedTeam === 'attacker' ? '#ff4444' : '#4444ff',
-        strokeWidth: 2
+        strokeWidth: 2,
+        team: selectedTeam
       };
-      addElement(newCircle);
+      setResizingElement(newCircle);
+      setResizeStartPos({ x: worldX, y: worldY });
+      setIsResizing(true);
     } else if (selectedTool === 'line') {
-      // Add line element
-      const newLine: DrawableElement = {
-        id: `line-${Date.now()}`,
-        type: 'line',
-        x: worldX,
-        y: worldY,
-        points: [worldX, worldY, worldX + 50, worldY],
-        color: selectedTeam === 'attacker' ? '#ff4444' : '#4444ff',
-        strokeWidth: 3
-      };
-      addElement(newLine);
+      // Start drawing free line
+      setIsDrawing(true);
+      setCurrentPath([worldX, worldY]);
     } else if (selectedTool === 'rectangle') {
       // Add rectangle element
       const newRectangle: DrawableElement = {
@@ -495,9 +706,12 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
         width: 60,
         height: 40,
         color: selectedTeam === 'attacker' ? '#ff4444' : '#4444ff',
-        strokeWidth: 2
+        strokeWidth: 2,
+        team: selectedTeam
       };
-      addElement(newRectangle);
+      setResizingElement(newRectangle);
+      setResizeStartPos({ x: worldX, y: worldY });
+      setIsResizing(true);
     } else if (selectedGadget) {
       // Add gadget element
       const newGadget: DrawableElement = {
@@ -534,6 +748,77 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
       setLastPanPoint({ x, y });
     }
     
+    // Handle area resizing during creation
+    if (isResizing && resizingElement) {
+      const worldX = (x - pan.x) / zoom;
+      const worldY = (y - pan.y) / zoom;
+      const deltaX = Math.abs(worldX - resizeStartPos.x);
+      const deltaY = Math.abs(worldY - resizeStartPos.y);
+      
+      if (resizingElement.type === 'circle') {
+        const radius = Math.max(10, Math.sqrt(deltaX * deltaX + deltaY * deltaY));
+        setResizingElement(prev => prev ? { ...prev, radius } : null);
+      } else if (resizingElement.type === 'rectangle') {
+        const width = Math.max(20, deltaX * 2);
+        const height = Math.max(20, deltaY * 2);
+        setResizingElement(prev => prev ? { ...prev, width, height } : null);
+      }
+    }
+    
+    // Handle resizing selected element
+    if (isResizingSelected && selectedElements.length === 1 && resizeHandle) {
+      const worldX = (x - pan.x) / zoom;
+      const worldY = (y - pan.y) / zoom;
+      const element = selectedElements[0];
+      
+      if (element.type === 'circle') {
+        const distance = Math.sqrt(
+          Math.pow(worldX - element.x, 2) + Math.pow(worldY - element.y, 2)
+        );
+        const newRadius = Math.max(5, distance);
+        updateElement(element.id, { radius: newRadius });
+      } else if (element.type === 'rectangle') {
+        const deltaX = worldX - resizeStartPos.x;
+        const deltaY = worldY - resizeStartPos.y;
+        
+        let newWidth = originalSize.width || 20;
+        let newHeight = originalSize.height || 20;
+        
+        switch (resizeHandle) {
+          case 'top-left':
+            newWidth = Math.max(10, (originalSize.width || 20) - deltaX * 2);
+            newHeight = Math.max(10, (originalSize.height || 20) - deltaY * 2);
+            break;
+          case 'top-right':
+            newWidth = Math.max(10, (originalSize.width || 20) + deltaX * 2);
+            newHeight = Math.max(10, (originalSize.height || 20) - deltaY * 2);
+            break;
+          case 'bottom-left':
+            newWidth = Math.max(10, (originalSize.width || 20) - deltaX * 2);
+            newHeight = Math.max(10, (originalSize.height || 20) + deltaY * 2);
+            break;
+          case 'bottom-right':
+            newWidth = Math.max(10, (originalSize.width || 20) + deltaX * 2);
+            newHeight = Math.max(10, (originalSize.height || 20) + deltaY * 2);
+            break;
+          case 'top':
+            newHeight = Math.max(10, (originalSize.height || 20) - deltaY * 2);
+            break;
+          case 'bottom':
+            newHeight = Math.max(10, (originalSize.height || 20) + deltaY * 2);
+            break;
+          case 'left':
+            newWidth = Math.max(10, (originalSize.width || 20) - deltaX * 2);
+            break;
+          case 'right':
+            newWidth = Math.max(10, (originalSize.width || 20) + deltaX * 2);
+            break;
+        }
+        
+        updateElement(element.id, { width: newWidth, height: newHeight });
+      }
+    }
+    
     // Handle element dragging
      if (isDragging && draggedElement) {
        const worldX = (x - pan.x) / zoom;
@@ -546,14 +831,48 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
        updateElement(draggedElement.id, { x: newX, y: newY });
      }
      
+     // Handle free line drawing
+     if (isDrawing && selectedTool === 'line') {
+       const worldX = (x - pan.x) / zoom;
+       const worldY = (y - pan.y) / zoom;
+       
+       setCurrentPath(prev => [...prev, worldX, worldY]);
+     }
+     
      // Update cursor based on hover state
-     if (selectedTool === 'select' && !isDragging && !isPanning) {
+     if (selectedTool === 'select' && !isDragging && !isPanning && !isResizingSelected) {
        const worldX = (x - pan.x) / zoom;
        const worldY = (y - pan.y) / zoom;
        const hoveredElement = findElementAt(worldX, worldY);
        
        if (hoveredElement && selectedElements.some(el => el.id === hoveredElement.id)) {
-         setCursorStyle('move');
+         // Check if hovering over resize handle
+         const handle = findResizeHandle(worldX, worldY, hoveredElement);
+         if (handle) {
+           // Set resize cursor based on handle position
+           switch (handle) {
+             case 'top-left':
+             case 'bottom-right':
+               setCursorStyle('nw-resize');
+               break;
+             case 'top-right':
+             case 'bottom-left':
+               setCursorStyle('ne-resize');
+               break;
+             case 'top':
+             case 'bottom':
+               setCursorStyle('n-resize');
+               break;
+             case 'left':
+             case 'right':
+               setCursorStyle('e-resize');
+               break;
+             default:
+               setCursorStyle('move');
+           }
+         } else {
+           setCursorStyle('move');
+         }
        } else if (hoveredElement) {
          setCursorStyle('pointer');
        } else {
@@ -564,7 +883,7 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
      } else {
        setCursorStyle('crosshair');
      }
-  }, [isPanning, lastPanPoint, pan, setPan, isDragging, draggedElement, dragOffset, zoom, updateElement, selectedTool, findElementAt, selectedElements]);
+  }, [isPanning, lastPanPoint, pan, setPan, isResizing, resizingElement, resizeStartPos, isDragging, draggedElement, dragOffset, zoom, updateElement, selectedTool, findElementAt, selectedElements, isResizingSelected, resizeHandle, originalSize, findResizeHandle]);
   
   const handleMouseUp = useCallback(() => {
     setIsPanning(false);
@@ -572,7 +891,38 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
     setIsDragging(false);
     setDraggedElement(null);
     setDragOffset({ x: 0, y: 0 });
-  }, []);
+    
+    // Finish resizing selected element
+    if (isResizingSelected) {
+      setIsResizingSelected(false);
+      setResizeHandle(null);
+      setOriginalSize({});
+    }
+    
+    // Finish drawing free line
+    if (isDrawing && selectedTool === 'line' && currentPath.length >= 4) {
+      const newLine: DrawableElement = {
+        id: `line-${Date.now()}`,
+        type: 'line',
+        x: currentPath[0],
+        y: currentPath[1],
+        points: currentPath,
+        color: selectedTeam === 'attacker' ? '#ff4444' : '#4444ff',
+        strokeWidth: 3
+      };
+      addElement(newLine);
+    }
+    
+    // Finish area resizing and add element
+    if (isResizing && resizingElement) {
+      addElement(resizingElement);
+      setIsResizing(false);
+      setResizingElement(null);
+    }
+    
+    setIsDrawing(false);
+    setCurrentPath([]);
+  }, [isDrawing, selectedTool, currentPath, selectedTeam, isResizing, resizingElement, addElement, isResizingSelected]);
 
 
 
@@ -615,6 +965,28 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
     }
   }, []);
 
+  // Handle text creation
+  const handleTextCreate = useCallback((text: string) => {
+    if (textPosition) {
+      const newText: DrawableElement = {
+        id: `text-${Date.now()}`,
+        type: 'text',
+        x: textPosition.x,
+        y: textPosition.y,
+        data: { text },
+        color: '#000000'
+      };
+      addElement(newText);
+    }
+    setIsTextModalOpen(false);
+    setTextPosition(null);
+  }, [textPosition, addElement]);
+
+  const handleTextCancel = useCallback(() => {
+    setIsTextModalOpen(false);
+    setTextPosition(null);
+  }, []);
+
   return (
     <div className="relative w-full h-full overflow-hidden">
       <canvas
@@ -630,6 +1002,12 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
         onContextMenu={handleContextMenu}
         onAuxClick={handleAuxClick}
       />
+      
+      <TextInputModal
+         isOpen={isTextModalOpen}
+         onConfirm={handleTextCreate}
+         onClose={handleTextCancel}
+       />
     </div>
   );
 };

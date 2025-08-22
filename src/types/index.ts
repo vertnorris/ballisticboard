@@ -75,6 +75,7 @@ export interface DrawableElement {
   strokeWidth?: number;
   gadgetId?: string;
   gadgetType?: GadgetType;
+  text?: string;
 }
 
 export interface TimedElement {

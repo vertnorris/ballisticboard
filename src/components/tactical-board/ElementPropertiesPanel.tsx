@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
 import { Trash2, Edit3, Move, RotateCw, Lightbulb } from 'lucide-react';
 import { useTacticalBoard } from '@/stores/tactical-board';
 
@@ -133,15 +134,50 @@ export const ElementPropertiesPanel: React.FC<ElementPropertiesPanelProps> = ({
 
             {/* Text content for text elements */}
             {element.type === 'text' && (
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="text-content" className="text-xs">Texto</Label>
-                <Input
+                <Textarea
                   id="text-content"
                   value={element.data?.text || ''}
                   onChange={(e) => handleUpdateData('text', e.target.value)}
-                  className="h-8 text-xs"
-                  placeholder="Digite o texto..."
+                  className="min-h-[80px] text-xs resize-none"
+                  placeholder="Digite o texto...\nUse Shift+Enter para quebrar linha"
                 />
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label htmlFor="font-size" className="text-xs">Tamanho da Fonte</Label>
+                    <Input
+                      id="font-size"
+                      type="number"
+                      value={element.data?.fontSize || 14}
+                      onChange={(e) => handleUpdateData('fontSize', parseFloat(e.target.value))}
+                      className="h-8 text-xs"
+                      min="8"
+                      max="72"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Estilo</Label>
+                    <div className="flex gap-1 mt-1">
+                      <Button
+                        variant={element.data?.fontWeight === 'bold' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => handleUpdateData('fontWeight', element.data?.fontWeight === 'bold' ? 'normal' : 'bold')}
+                        className="h-8 px-2 text-xs font-bold"
+                      >
+                        B
+                      </Button>
+                      <Button
+                        variant={element.data?.fontStyle === 'italic' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => handleUpdateData('fontStyle', element.data?.fontStyle === 'italic' ? 'normal' : 'italic')}
+                        className="h-8 px-2 text-xs italic"
+                      >
+                        I
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 
