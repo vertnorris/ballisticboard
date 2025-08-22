@@ -19,7 +19,7 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" className="dark" suppressHydrationWarning>
       <head>
-        <link rel="icon" href="/favicon.ico" />
+        <link rel="icon" href="/faviconsz.png" />
       </head>
       <body className={`${inter.className} dark`}>
         {children}
