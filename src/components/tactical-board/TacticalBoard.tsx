@@ -41,10 +41,8 @@ import {
 } from '@/components/ui/sidebar';
 import { ZoomIn, ZoomOut, Maximize, Target, Users, Zap, Undo2, Redo2, RotateCcw, Save, Loader2, Check, ChevronDown, Square, Circle, Type, Pen, Hand, Lightbulb } from 'lucide-react';
 
-import { StrategyManager } from './StrategyManager';
 import { GadgetCounter } from './GadgetCounter';
-import { StrategyDrawingPanel } from './StrategyDrawingPanel';
-import { TabbedPanel } from './TabbedPanel';
+import { UnifiedTabbedPanel } from './UnifiedTabbedPanel';
 import { gadgets } from '@/data/gadgets';
 
 import { Onboarding } from './Onboarding';
@@ -78,14 +76,33 @@ export const TacticalBoard: React.FC = () => {
     setPan,
     showOnboarding,
     setShowOnboarding,
+    loadCustomCalloutPositions,
   } = useTacticalBoard();
 
   const canvasSize = useCanvasSize();
+  const [isClient, setIsClient] = useState(false);
 
   const [actionStatus, setActionStatus] = useState({
     saving: false,
     lastSaved: false,
   });
+
+  const [isGadgetDropdownOpen, setIsGadgetDropdownOpen] = useState(false);
+
+  // Inicializar dados do cliente para evitar erro de hidratação
+  useEffect(() => {
+    setIsClient(true);
+    loadCustomCalloutPositions();
+  }, [loadCustomCalloutPositions]);
+
+  // Abrir dropdown automaticamente quando ferramenta gadget for selecionada
+  useEffect(() => {
+    if (selectedTool === 'gadget') {
+      setIsGadgetDropdownOpen(true);
+    } else {
+      setIsGadgetDropdownOpen(false);
+    }
+  }, [selectedTool]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -126,7 +143,8 @@ export const TacticalBoard: React.FC = () => {
         if (selectedElements.length > 0) {
           removeElements(selectedElements);
         }
-      } else if (e.key === 'r' && confirm('Tem certeza que deseja limpar tudo?')) {
+      } else if (e.key === 'r' && e.ctrlKey && confirm('Tem certeza que deseja limpar tudo?')) {
+        console.log('Reset acionado via Ctrl+R');
         reset();
         clearSelection();
       } else {
@@ -190,6 +208,18 @@ export const TacticalBoard: React.FC = () => {
     setZoom(1);
     setPan({ x: 0, y: 0 });
   };
+
+  // Renderização condicional para evitar erros de hidratação
+  if (!isClient) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
+          <p className="text-sm text-muted-foreground">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <TooltipProvider>
@@ -393,7 +423,7 @@ export const TacticalBoard: React.FC = () => {
                       </TooltipContent>
                     </Tooltip>
                     
-                    <DropdownMenu>
+                    <DropdownMenu open={isGadgetDropdownOpen} onOpenChange={setIsGadgetDropdownOpen}>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <DropdownMenuTrigger asChild>
@@ -401,7 +431,10 @@ export const TacticalBoard: React.FC = () => {
                               variant={selectedTool === 'gadget' ? 'default' : 'ghost'}
                               size="sm"
                               className="h-9 w-9 p-0"
-                              onClick={() => setSelectedTool('gadget')}
+                              onClick={() => {
+                                setSelectedTool('gadget');
+                                setIsGadgetDropdownOpen(true);
+                              }}
                             >
                               <Zap className="h-4 w-4" />
                             </Button>
@@ -639,9 +672,7 @@ export const TacticalBoard: React.FC = () => {
               </div>
 
               <div className="w-80 space-y-4">
-                <StrategyManager />
-                <StrategyDrawingPanel />
-                <TabbedPanel selectedElements={elements.filter(el => selectedElements.includes(el.id))} />
+                <UnifiedTabbedPanel selectedElements={elements.filter(el => selectedElements.includes(el.id))} />
                 
                 {/* Reset Board Button */}
                 <Tooltip>

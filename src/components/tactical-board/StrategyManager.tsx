@@ -32,6 +32,7 @@ export const StrategyManager: React.FC = () => {
   const {
     currentStrategy,
     savedStrategies,
+    elements,
     saveStrategy,
     loadStrategy,
     deleteStrategy,
@@ -57,7 +58,12 @@ export const StrategyManager: React.FC = () => {
       .map(tag => tag.trim())
       .filter(tag => tag.length > 0);
     
-    saveStrategy(strategyName.trim(), tagArray);
+    saveStrategy({
+      name: strategyName.trim(),
+      tags: tagArray,
+      elements,
+      createdAt: new Date().toISOString()
+    });
     
     toast({
       title: 'Estratégia salva',

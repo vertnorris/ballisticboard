@@ -34,6 +34,9 @@ interface TacticalBoardState {
   selectedTeam: TeamType;
   selectedGadget: string | null;
   
+  // Drawing state
+  selectedLineStyle: string;
+  
   // Elements state
   elements: DrawableElement[];
   selectedElements: string[];
@@ -83,9 +86,11 @@ interface TacticalBoardState {
   undo: () => void;
   redo: () => void;
   
-  saveStrategy: (name: string, tags?: string[]) => void;
+  saveStrategy: (strategy: { name: string; tags: string[]; elements: DrawableElement[]; createdAt: string; }) => void;
   loadStrategy: (strategy: Strategy) => void;
   deleteStrategy: (id: string) => void;
+  
+  setSelectedLineStyle: (style: string) => void;
   
   reset: () => void;
   
@@ -100,7 +105,6 @@ interface TacticalBoardState {
 
 // Funções de persistência
 const loadCalloutPositionsFromStorage = (): PersistedCalloutData => {
-  if (typeof window === 'undefined') return {};
   try {
     const stored = localStorage.getItem('ballistic-board-callouts');
     return stored ? JSON.parse(stored) : {};
@@ -110,8 +114,6 @@ const loadCalloutPositionsFromStorage = (): PersistedCalloutData => {
 };
 
 const loadOnboardingStatusFromStorage = (): boolean => {
-  if (typeof window === 'undefined') return true;
-  
   try {
     const stored = localStorage.getItem('tacticalBoard_onboardingCompleted');
     if (!stored) return true; // Mostrar onboarding se nunca foi completado
@@ -129,8 +131,6 @@ const loadOnboardingStatusFromStorage = (): boolean => {
 };
 
 const saveOnboardingCompletedToStorage = () => {
-  if (typeof window === 'undefined') return;
-  
   try {
     localStorage.setItem('tacticalBoard_onboardingCompleted', Date.now().toString());
   } catch (error) {
@@ -139,7 +139,6 @@ const saveOnboardingCompletedToStorage = () => {
 };
 
 const saveCalloutPositionsToStorage = (positions: PersistedCalloutData) => {
-  if (typeof window === 'undefined') return;
   try {
     localStorage.setItem('ballistic-board-callouts', JSON.stringify(positions));
   } catch (error) {
@@ -156,11 +155,12 @@ const initialState = {
   hiddenCallouts: [],
   editingCallout: null,
   calloutManagementMode: false,
-  customCalloutPositions: loadCalloutPositionsFromStorage(),
-  showOnboarding: loadOnboardingStatusFromStorage(), // Verificar localStorage para decidir se mostra onboarding
+  customCalloutPositions: {} as PersistedCalloutData,
+  showOnboarding: true, // Valor padrão, será carregado no cliente
   selectedTool: 'select' as ToolType,
   selectedTeam: 'attacker' as TeamType,
   selectedGadget: null,
+  selectedLineStyle: 'solid',
   elements: [],
   selectedElements: [],
   timedElements: [],
@@ -275,10 +275,14 @@ export const useTacticalBoard = create<TacticalBoardState>((set, get) => ({
   addElement: (element) => {
     const { elements, history, historyIndex, canAddGadget } = get();
 
+    console.log('Store: Adicionando elemento:', element);
+    console.log('Store: Elementos atuais antes da adição:', elements.length);
+
     // Check gadget limits before adding
     if (element.type === 'gadget' && element.gadgetId) {
       if (!canAddGadget(element.gadgetId)) {
         // Don't add if limit is reached
+        console.log('Store: Limite de gadget atingido, não adicionando');
         return false;
       }
     }
@@ -293,6 +297,7 @@ export const useTacticalBoard = create<TacticalBoardState>((set, get) => ({
       historyIndex: newHistory.length - 1,
     });
 
+    console.log('Store: Elemento adicionado com sucesso. Total de elementos:', newElements.length);
     return true;
   },
   
@@ -369,28 +374,24 @@ export const useTacticalBoard = create<TacticalBoardState>((set, get) => ({
     }
   },
   
-  saveStrategy: (name, tags = []) => {
-    const { selectedMap, elements, savedStrategies, selectedTeam } = get();
+  saveStrategy: (strategyData) => {
+    const { selectedMap, selectedTeam } = get();
     if (!selectedMap) return;
     
     const strategy: Strategy = {
       id: Date.now().toString(),
-      name,
+      name: strategyData.name,
       map: selectedMap.id,
       side: selectedTeam,
-      elements: [...elements],
-      createdAt: new Date(),
+      elements: [...strategyData.elements],
+      createdAt: new Date(strategyData.createdAt),
       updatedAt: new Date(),
-      tags,
+      tags: strategyData.tags,
     };
     
+    const { savedStrategies } = get();
     const newStrategies = [...savedStrategies, strategy];
-    set({ 
-      savedStrategies: newStrategies,
-      currentStrategy: strategy 
-    });
-    
-    // Save to localStorage
+    set({ savedStrategies: newStrategies, currentStrategy: strategy });
     localStorage.setItem('ballistic-strategies', JSON.stringify(newStrategies));
   },
   
@@ -462,6 +463,8 @@ export const useTacticalBoard = create<TacticalBoardState>((set, get) => ({
   },
 
   reset: () => {
+    console.log('Store: Reset chamado! Limpando todos os elementos.');
+    console.trace('Store: Stack trace do reset:');
     set({
       elements: [],
       selectedElements: [],
@@ -471,6 +474,8 @@ export const useTacticalBoard = create<TacticalBoardState>((set, get) => ({
       currentStrategy: null,
     });
   },
+  
+  setSelectedLineStyle: (style) => set({ selectedLineStyle: style }),
   
   setShowOnboarding: (show) => set({ showOnboarding: show }),
   completeOnboarding: () => {
@@ -489,15 +494,36 @@ export const useTacticalBoard = create<TacticalBoardState>((set, get) => ({
   },
 }));
 
-// Load saved strategies on initialization
-if (typeof window !== 'undefined') {
-  const savedStrategies = localStorage.getItem('ballistic-strategies');
-  if (savedStrategies) {
+// Função para inicializar dados do localStorage no cliente
+const initializeClientData = () => {
+  if (typeof window === 'undefined') return;
+  
+  // Carregar posições customizadas de callouts
+  const customCalloutPositions = loadCalloutPositionsFromStorage();
+  
+  // Carregar status do onboarding
+  const showOnboarding = loadOnboardingStatusFromStorage();
+  
+  // Carregar estratégias salvas
+  let savedStrategies: Strategy[] = [];
+  const savedStrategiesData = localStorage.getItem('ballistic-strategies');
+  if (savedStrategiesData) {
     try {
-      const strategies = JSON.parse(savedStrategies);
-      useTacticalBoard.setState({ savedStrategies: strategies });
+      savedStrategies = JSON.parse(savedStrategiesData);
     } catch (error) {
       console.error('Failed to load saved strategies:', error);
     }
   }
+  
+  // Atualizar o store com os dados carregados
+  useTacticalBoard.setState({
+    customCalloutPositions,
+    showOnboarding,
+    savedStrategies
+  });
+};
+
+// Inicializar dados do cliente quando o módulo for carregado no navegador
+if (typeof window !== 'undefined') {
+  initializeClientData();
 }

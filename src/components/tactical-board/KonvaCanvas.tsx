@@ -46,6 +46,7 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
   setPan,
   setSelectedElements,
 }) => {
+  console.log('KonvaCanvas renderizado - selectedTool:', selectedTool);
   const { addElement, updateElement } = useTacticalBoard();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [mapImage, setMapImage] = useState<HTMLImageElement | null>(null);
@@ -211,6 +212,45 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
         case 'player':
           if (distance <= 15) return element; // Default click radius
           break;
+        case 'line':
+          // Check if click is near any segment of the line
+          if (element.points && element.points.length >= 4) {
+            const threshold = 10; // Distance threshold for line selection
+            for (let i = 0; i < element.points.length - 2; i += 2) {
+              const x1 = element.points[i];
+              const y1 = element.points[i + 1];
+              const x2 = element.points[i + 2];
+              const y2 = element.points[i + 3];
+              
+              // Calculate distance from point to line segment
+              const A = x - x1;
+              const B = y - y1;
+              const C = x2 - x1;
+              const D = y2 - y1;
+              
+              const dot = A * C + B * D;
+              const lenSq = C * C + D * D;
+              
+              if (lenSq === 0) {
+                // Line segment is a point
+                const dist = Math.sqrt(A * A + B * B);
+                if (dist <= threshold) return element;
+              } else {
+                let param = dot / lenSq;
+                param = Math.max(0, Math.min(1, param));
+                
+                const xx = x1 + param * C;
+                const yy = y1 + param * D;
+                
+                const dx = x - xx;
+                const dy = y - yy;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                if (dist <= threshold) return element;
+              }
+            }
+          }
+          break;
       }
     }
     
@@ -283,8 +323,11 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
     
     // Draw elements
     if (elements && elements.length > 0) {
+      console.log('Canvas: Desenhando elementos:', elements.length);
+      console.log('Canvas: Lista de elementos:', elements.map(e => ({ id: e.id, type: e.type, x: e.x, y: e.y })));
       elements.forEach((element) => {
         if (!element || typeof element.x !== 'number' || typeof element.y !== 'number') {
+          console.log('Elemento inválido:', element);
           return;
         }
         
@@ -338,15 +381,52 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
             break;
             
           case 'line':
-            if (element.points && element.points.length >= 4) {
+            if (element.points && element.points.length >= 4) { // Precisa de pelo menos 2 pontos (4 coordenadas)
+              ctx.save();
+              
+              const isSelected = selectedElements.some(sel => sel.id === element.id);
+              const lineColor = element.color || (element.team === 'attacker' ? '#ff0000' : '#0000ff');
+              
+              // Draw glow effect if selected
+              if (isSelected) {
+                ctx.shadowColor = lineColor;
+                ctx.shadowBlur = 15;
+                ctx.shadowOffsetX = 0;
+                ctx.shadowOffsetY = 0;
+                
+                // Draw multiple glow layers for stronger effect
+                for (let i = 0; i < 3; i++) {
+                  ctx.strokeStyle = lineColor;
+                  ctx.lineWidth = (element.strokeWidth || 3) + (i * 2);
+                  ctx.lineCap = 'round';
+                  ctx.lineJoin = 'round';
+                  ctx.globalAlpha = 0.3 - (i * 0.1);
+                  
+                  ctx.beginPath();
+                  ctx.moveTo(element.points[0], element.points[1]);
+                  for (let j = 2; j < element.points.length; j += 2) {
+                    ctx.lineTo(element.points[j], element.points[j + 1]);
+                  }
+                  ctx.stroke();
+                }
+              }
+              
+              // Draw the main line
+              ctx.shadowColor = 'transparent';
+              ctx.shadowBlur = 0;
+              ctx.strokeStyle = lineColor;
+              ctx.lineWidth = element.strokeWidth || 3;
               ctx.lineCap = 'round';
               ctx.lineJoin = 'round';
+              ctx.globalAlpha = 1.0;
+              
               ctx.beginPath();
               ctx.moveTo(element.points[0], element.points[1]);
               for (let i = 2; i < element.points.length; i += 2) {
                 ctx.lineTo(element.points[i], element.points[i + 1]);
               }
               ctx.stroke();
+              ctx.restore();
             }
             break;
             
@@ -379,23 +459,24 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
             const teamColor = element.team === 'attacker' ? '#ff0000' : '#0000ff';
             ctx.fillStyle = teamColor;
             ctx.beginPath();
-            ctx.arc(element.x, element.y, 15, 0, 2 * Math.PI);
+            ctx.arc(element.x, element.y, 7.5, 0, 2 * Math.PI);
             ctx.fill();
             break;
             
           case 'gadget':
-            // Draw gadget with icon and colored border
+            // Draw gadget with circle background and overlapping icon
             const gadget = element.gadgetId ? getGadgetById(element.gadgetId) : null;
             const gadgetImage = element.gadgetId ? gadgetImages[element.gadgetId] : null;
             
-            // Draw circular border based on team
+            // Draw circular border based on team (background layer)
             const borderColor = element.team === 'attacker' ? '#ff4444' : '#4444ff';
-            const radius = 18;
+            const radius = 8; // Adjusted to 8 for 16x16 circle
+            
+            ctx.save();
             
             // Draw border circle
-            ctx.save();
             ctx.strokeStyle = borderColor;
-            ctx.lineWidth = 3;
+            ctx.lineWidth = 5;
             ctx.beginPath();
             ctx.arc(element.x, element.y, radius, 0, 2 * Math.PI);
             ctx.stroke();
@@ -406,13 +487,11 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
             ctx.arc(element.x, element.y, radius - 2, 0, 2 * Math.PI);
             ctx.fill();
             
-            // Draw gadget icon if available
+            ctx.restore();
+            
+            // Draw gadget icon on top (foreground layer) - larger than circle
             if (gadgetImage) {
-              const iconSize = 24;
-              ctx.save();
-              ctx.beginPath();
-              ctx.arc(element.x, element.y, radius - 3, 0, 2 * Math.PI);
-              ctx.clip();
+              const iconSize = 32; // Adjusted to 32x32 as requested
               
               ctx.drawImage(
                 gadgetImage,
@@ -421,7 +500,6 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
                 iconSize,
                 iconSize
               );
-              ctx.restore();
             } else {
               // Fallback: draw a small colored square if image not loaded
               ctx.fillStyle = borderColor;
@@ -433,99 +511,103 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
               );
             }
             
-            ctx.restore();
             break;
         }
         
-        // Draw selection highlight if element is selected
+        // Draw glow effect if element is selected
         const isSelected = selectedElements.some(sel => sel.id === element.id);
         if (isSelected) {
           ctx.save();
-          ctx.strokeStyle = '#00ff00'; // Green selection color
-          ctx.lineWidth = 3;
-          ctx.setLineDash([5, 5]); // Dashed line
           
-          switch (element.type) {
-            case 'circle':
-              ctx.beginPath();
-              ctx.arc(element.x, element.y, (element.radius || 10) + 5, 0, 2 * Math.PI);
-              ctx.stroke();
-              
-              // Draw resize handles for circles
-              ctx.setLineDash([]);
-              ctx.fillStyle = '#00ff00';
-              const radius = element.radius || 10;
-              ctx.fillRect(element.x + radius - 3, element.y - 3, 6, 6); // Right handle
-              ctx.fillRect(element.x - radius - 3, element.y - 3, 6, 6); // Left handle
-              ctx.fillRect(element.x - 3, element.y + radius - 3, 6, 6); // Bottom handle
-              ctx.fillRect(element.x - 3, element.y - radius - 3, 6, 6); // Top handle
-              break;
-              
-            case 'rectangle':
-              const width = element.width || 20;
-              const height = element.height || 20;
-              ctx.strokeRect(
-                element.x - width / 2 - 5,
-                element.y - height / 2 - 5,
-                width + 10,
-                height + 10
-              );
-              
-              // Draw resize handles for rectangles
-              ctx.setLineDash([]);
-              ctx.fillStyle = '#00ff00';
-              const w = element.width || 20;
-              const h = element.height || 20;
-              // Corner handles
-              ctx.fillRect(element.x - w/2 - 3, element.y - h/2 - 3, 6, 6); // Top-left
-              ctx.fillRect(element.x + w/2 - 3, element.y - h/2 - 3, 6, 6); // Top-right
-              ctx.fillRect(element.x - w/2 - 3, element.y + h/2 - 3, 6, 6); // Bottom-left
-              ctx.fillRect(element.x + w/2 - 3, element.y + h/2 - 3, 6, 6); // Bottom-right
-              // Side handles
-              ctx.fillRect(element.x - 3, element.y - h/2 - 3, 6, 6); // Top
-              ctx.fillRect(element.x - 3, element.y + h/2 - 3, 6, 6); // Bottom
-              ctx.fillRect(element.x - w/2 - 3, element.y - 3, 6, 6); // Left
-              ctx.fillRect(element.x + w/2 - 3, element.y - 3, 6, 6); // Right
-              break;
-              
-            case 'player':
-            case 'gadget':
-              ctx.beginPath();
-              ctx.arc(element.x, element.y, 20, 0, 2 * Math.PI);
-              ctx.stroke();
-              break;
-              
-            case 'text':
-              const textFontSize = element.data?.fontSize || 14;
-              const textContent = element.data?.text || 'Text';
-              const textLines = textContent.split('\n');
-              const textLineHeight = textFontSize * 1.2;
-              const textTotalHeight = textLines.length * textLineHeight;
-              
-              // Calculate text width (approximate)
-              ctx.font = `${element.data?.fontStyle || 'normal'} ${element.data?.fontWeight || 'normal'} ${textFontSize}px Arial`;
-              const maxLineWidth = Math.max(...textLines.map((line: string) => ctx.measureText(line).width));
-              
-              // Draw selection rectangle around text
-              const padding = 5;
-              ctx.strokeRect(
-                element.x - maxLineWidth/2 - padding,
-                element.y - textTotalHeight/2 - padding,
-                maxLineWidth + padding * 2,
-                textTotalHeight + padding * 2
-              );
-              
-              // Draw resize handles for text
-              ctx.setLineDash([]);
-              ctx.fillStyle = '#00ff00';
-              const textWidth = maxLineWidth + padding * 2;
-              const textHeight = textTotalHeight + padding * 2;
-              // Corner handles
-              ctx.fillRect(element.x - textWidth/2 - 3, element.y - textHeight/2 - 3, 6, 6); // Top-left
-              ctx.fillRect(element.x + textWidth/2 - 3, element.y - textHeight/2 - 3, 6, 6); // Top-right
-              ctx.fillRect(element.x - textWidth/2 - 3, element.y + textHeight/2 - 3, 6, 6); // Bottom-left
-              ctx.fillRect(element.x + textWidth/2 - 3, element.y + textHeight/2 - 3, 6, 6); // Bottom-right
-              break;
+          // Create glow effect with multiple layers
+          const glowColor = '#00ff88'; // Cyan-green glow color
+          ctx.shadowColor = glowColor;
+          ctx.shadowBlur = 20;
+          ctx.globalAlpha = 0.8;
+          
+          // Draw multiple glow layers for intensity
+          for (let i = 0; i < 3; i++) {
+            ctx.save();
+            ctx.globalAlpha = 0.3 - i * 0.1;
+            ctx.shadowBlur = 15 + i * 5;
+            
+            switch (element.type) {
+              case 'circle':
+                ctx.beginPath();
+                ctx.strokeStyle = glowColor;
+                ctx.lineWidth = 3 + i * 2;
+                ctx.arc(element.x, element.y, element.radius || 10, 0, 2 * Math.PI);
+                ctx.stroke();
+                break;
+                
+              case 'rectangle':
+                const width = element.width || 20;
+                const height = element.height || 20;
+                ctx.strokeStyle = glowColor;
+                ctx.lineWidth = 3 + i * 2;
+                ctx.strokeRect(
+                  element.x - width / 2,
+                  element.y - height / 2,
+                  width,
+                  height
+                );
+                break;
+                
+              case 'player':
+                ctx.beginPath();
+                ctx.strokeStyle = glowColor;
+                ctx.lineWidth = 3 + i * 2;
+                ctx.arc(element.x, element.y, 7.5, 0, 2 * Math.PI);
+                ctx.stroke();
+                break;
+                
+              case 'gadget':
+                ctx.beginPath();
+                ctx.strokeStyle = glowColor;
+                ctx.lineWidth = 3 + i * 2;
+                ctx.arc(element.x, element.y, 18, 0, 2 * Math.PI);
+                ctx.stroke();
+                break;
+                
+              case 'text':
+                const textFontSize = element.data?.fontSize || 14;
+                const textContent = element.data?.text || 'Text';
+                const textLines = textContent.split('\n');
+                const textLineHeight = textFontSize * 1.2;
+                const textTotalHeight = textLines.length * textLineHeight;
+                
+                ctx.font = `${element.data?.fontStyle || 'normal'} ${element.data?.fontWeight || 'normal'} ${textFontSize}px Arial`;
+                const maxLineWidth = Math.max(...textLines.map((line: string) => ctx.measureText(line).width));
+                
+                const padding = 5;
+                ctx.strokeStyle = glowColor;
+                ctx.lineWidth = 3 + i * 2;
+                ctx.strokeRect(
+                  element.x - maxLineWidth/2 - padding,
+                  element.y - textTotalHeight/2 - padding,
+                  maxLineWidth + padding * 2,
+                  textTotalHeight + padding * 2
+                );
+                break;
+                
+              case 'line':
+                if (element.points && element.points.length >= 4) {
+                  ctx.strokeStyle = glowColor;
+                  ctx.lineWidth = (element.strokeWidth || 3) + i * 2;
+                  ctx.lineCap = 'round';
+                  ctx.lineJoin = 'round';
+                  
+                  ctx.beginPath();
+                  ctx.moveTo(element.points[0], element.points[1]);
+                  for (let j = 2; j < element.points.length; j += 2) {
+                    ctx.lineTo(element.points[j], element.points[j + 1]);
+                  }
+                  ctx.stroke();
+                }
+                break;
+            }
+            
+            ctx.restore();
           }
           
           ctx.restore();
@@ -533,22 +615,27 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
         
         ctx.restore();
       });
+    } else {
+      console.log('Canvas: Nenhum elemento para desenhar. Array elements:', elements);
     }
     
-    // Draw current path being drawn
-    if (isDrawing && currentPath.length >= 4) {
+    // Draw current path being drawn (free drawing)
+    if (isDrawing && currentPath.length >= 2) { // Apenas 1 ponto (2 coordenadas) para começar
       ctx.save();
-      ctx.strokeStyle = selectedTeam === 'attacker' ? '#ff4444' : '#4444ff';
+      ctx.strokeStyle = selectedTeam === 'attacker' ? '#ff0000' : '#0000ff';
       ctx.lineWidth = 3;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
+      ctx.globalAlpha = 0.8; // Ligeiramente transparente durante o desenho
       
-      ctx.beginPath();
-      ctx.moveTo(currentPath[0], currentPath[1]);
-      for (let i = 2; i < currentPath.length; i += 2) {
-        ctx.lineTo(currentPath[i], currentPath[i + 1]);
+      if (currentPath.length >= 4) { // Precisa de pelo menos 2 pontos para desenhar linha
+        ctx.beginPath();
+        ctx.moveTo(currentPath[0], currentPath[1]);
+        for (let i = 2; i < currentPath.length; i += 2) {
+          ctx.lineTo(currentPath[i], currentPath[i + 1]);
+        }
+        ctx.stroke();
       }
-      ctx.stroke();
       ctx.restore();
     }
     
@@ -599,12 +686,25 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
 
   // Mouse event handlers
   const handleMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    console.log('🖱️ Mouse Down Event:', {
+      button: e.button,
+      clientX: e.clientX,
+      clientY: e.clientY,
+      target: e.target,
+      currentTarget: e.currentTarget,
+      targetTagName: (e.target as HTMLElement)?.tagName,
+      currentTargetTagName: (e.currentTarget as HTMLElement)?.tagName
+    });
+    console.log('Mouse down - ferramenta selecionada:', selectedTool);
+    console.log('Mouse down - botão:', e.button);
+    console.log('Mouse down - posição:', e.clientX, e.clientY);
     const canvas = canvasRef.current;
     if (!canvas) return;
     
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
+    console.log('Posição no canvas:', x, y);
     
     // Calculate world coordinates
     const worldX = (x - pan.x) / zoom;
@@ -685,7 +785,7 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
         x: worldX,
         y: worldY,
         radius: 30,
-        color: selectedTeam === 'attacker' ? '#ff4444' : '#4444ff',
+        color: selectedTeam === 'attacker' ? '#ff0000' : '#0000ff',
         strokeWidth: 2,
         team: selectedTeam
       };
@@ -694,8 +794,15 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
       setIsResizing(true);
     } else if (selectedTool === 'line') {
       // Start drawing free line
+      console.log('=== INICIANDO DESENHO DE LINHA ===');
+      console.log('Ferramenta selecionada:', selectedTool);
+      console.log('Posição mundial:', worldX, worldY);
+      console.log('Botão do mouse:', e.button);
       setIsDrawing(true);
       setCurrentPath([worldX, worldY]);
+      console.log('Estado isDrawing definido como true');
+      console.log('CurrentPath inicial:', [worldX, worldY]);
+      console.log('=== FIM INICIALIZAÇÃO LINHA ===');
     } else if (selectedTool === 'rectangle') {
       // Add rectangle element
       const newRectangle: DrawableElement = {
@@ -705,7 +812,7 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
         y: worldY,
         width: 60,
         height: 40,
-        color: selectedTeam === 'attacker' ? '#ff4444' : '#4444ff',
+        color: selectedTeam === 'attacker' ? '#ff0000' : '#0000ff',
         strokeWidth: 2,
         team: selectedTeam
       };
@@ -728,6 +835,7 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
   }, [selectedTool, zoom, pan, findElementAt, setSelectedElements, selectedElements, selectedTeam, selectedGadget, addElement]);
   
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
+    console.log('🖱️ HandleMouseMove chamado - isDrawing:', isDrawing, 'selectedTool:', selectedTool);
     const canvas = canvasRef.current;
     if (!canvas) return;
     
@@ -827,16 +935,54 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
        const newX = worldX - dragOffset.x;
        const newY = worldY - dragOffset.y;
        
+       // Calculate the offset for movement
+       const deltaX = newX - draggedElement.x;
+       const deltaY = newY - draggedElement.y;
+       
        // Update element position
-       updateElement(draggedElement.id, { x: newX, y: newY });
+       if (draggedElement.type === 'line' && draggedElement.points) {
+         // For lines, we need to move all points
+         const newPoints = [...draggedElement.points];
+         for (let i = 0; i < newPoints.length; i += 2) {
+           newPoints[i] += deltaX;     // x coordinate
+           newPoints[i + 1] += deltaY; // y coordinate
+         }
+         updateElement(draggedElement.id, { x: newX, y: newY, points: newPoints });
+       } else {
+         // For other elements, just update x and y
+         updateElement(draggedElement.id, { x: newX, y: newY });
+       }
      }
      
-     // Handle free line drawing
+     // Handle free line drawing (brush-like)
      if (isDrawing && selectedTool === 'line') {
        const worldX = (x - pan.x) / zoom;
        const worldY = (y - pan.y) / zoom;
+       console.log('✏️ Adicionando ponto durante desenho:', worldX, worldY);
        
-       setCurrentPath(prev => [...prev, worldX, worldY]);
+       // Add points continuously for smooth drawing
+       setCurrentPath(prev => {
+         console.log('📍 CurrentPath antes:', prev.length / 2, 'pontos');
+         if (prev.length >= 2) {
+           const lastX = prev[prev.length - 2];
+           const lastY = prev[prev.length - 1];
+           const distance = Math.sqrt((worldX - lastX) ** 2 + (worldY - lastY) ** 2);
+           
+           // Reduced threshold for smoother drawing (1 pixel instead of 3)
+           if (distance > 1) {
+             console.log('✅ Ponto adicionado - distância:', distance);
+             return [...prev, worldX, worldY];
+           } else {
+             console.log('❌ Ponto rejeitado - distância muito pequena:', distance);
+           }
+         } else {
+           // Always add the first point after initialization
+           console.log('🎯 Adicionando primeiro ponto após inicialização');
+           return [...prev, worldX, worldY];
+         }
+         
+         return prev;
+       });
      }
      
      // Update cursor based on hover state
@@ -876,7 +1022,7 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
        } else if (hoveredElement) {
          setCursorStyle('pointer');
        } else {
-         setCursorStyle('crosshair');
+         setCursorStyle('default');
        }
      } else if (selectedTool === 'pan' || isPanning) {
        setCursorStyle(isPanning ? 'grabbing' : 'grab');
@@ -899,17 +1045,19 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
       setOriginalSize({});
     }
     
-    // Finish drawing free line
-    if (isDrawing && selectedTool === 'line' && currentPath.length >= 4) {
+    // Finish drawing free line (brush stroke)
+    if (isDrawing && selectedTool === 'line' && currentPath.length >= 4) { // Precisa de pelo menos 2 pontos (4 coordenadas)
       const newLine: DrawableElement = {
         id: `line-${Date.now()}`,
         type: 'line',
         x: currentPath[0],
         y: currentPath[1],
-        points: currentPath,
-        color: selectedTeam === 'attacker' ? '#ff4444' : '#4444ff',
-        strokeWidth: 3
+        points: [...currentPath], // Criar uma cópia do array
+        color: selectedTeam === 'attacker' ? '#ff0000' : '#0000ff',
+        strokeWidth: 3,
+        team: selectedTeam
       };
+      console.log('✏️ Criando linha livre com', currentPath.length / 2, 'pontos');
       addElement(newLine);
     }
     
@@ -930,6 +1078,69 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
   useEffect(() => {
     draw();
   }, [draw]);
+
+  // Add native DOM event listeners for better mouse event handling
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const handleNativeMouseMove = (e: MouseEvent) => {
+      console.log('🔥 NATIVE MouseMove capturado - isDrawing:', isDrawing);
+      if (isDrawing && selectedTool === 'line') {
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const worldX = (x - pan.x) / zoom;
+        const worldY = (y - pan.y) / zoom;
+        
+        console.log('🎯 NATIVE - Adicionando ponto:', worldX, worldY);
+        
+        setCurrentPath(prev => {
+          if (prev.length >= 2) {
+            const lastX = prev[prev.length - 2];
+            const lastY = prev[prev.length - 1];
+            const distance = Math.sqrt((worldX - lastX) ** 2 + (worldY - lastY) ** 2);
+            
+            if (distance > 1) {
+              console.log('✅ NATIVE - Ponto adicionado');
+              return [...prev, worldX, worldY];
+            }
+          } else {
+            console.log('🎯 NATIVE - Primeiro ponto após init');
+            return [...prev, worldX, worldY];
+          }
+          return prev;
+        });
+      }
+    };
+
+    canvas.addEventListener('mousemove', handleNativeMouseMove);
+    
+    return () => {
+      canvas.removeEventListener('mousemove', handleNativeMouseMove);
+    };
+  }, [isDrawing, selectedTool, pan.x, pan.y, zoom]);
+
+  // Add direct event listener for debugging
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const handleDirectMouseDown = (e: MouseEvent) => {
+      console.log('🎯 Direct mousedown event captured:', {
+        clientX: e.clientX,
+        clientY: e.clientY,
+        button: e.button,
+        target: e.target
+      });
+    };
+
+    canvas.addEventListener('mousedown', handleDirectMouseDown);
+
+    return () => {
+      canvas.removeEventListener('mousedown', handleDirectMouseDown);
+    };
+  }, []);
 
   // Resize canvas
   useEffect(() => {
@@ -992,7 +1203,13 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
       <canvas
         ref={canvasRef}
         className="absolute inset-0"
-        style={{ cursor: cursorStyle }}
+        style={{ 
+          cursor: cursorStyle,
+          touchAction: 'none',
+          userSelect: 'none',
+          pointerEvents: 'auto',
+          zIndex: 10
+        }}
         width={width}
         height={height}
         onMouseDown={handleMouseDown}
