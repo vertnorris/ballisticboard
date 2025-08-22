@@ -3,6 +3,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { DrawableElement, Gadget, TeamType, Map, GadgetType } from '@/types';
 import { useTacticalBoard } from '@/stores/tactical-board';
+import { getGadgetById } from '@/data/gadgets';
 
 // Helper function to get CSS color values
 const getCSSColor = (variable: string): string => {
@@ -67,6 +68,42 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
     img.onerror = () => setMapImage(null);
     img.src = currentMap.image;
   }, [currentMap?.image]);
+
+  // Load gadget images
+  useEffect(() => {
+    const loadGadgetImages = async () => {
+      const newGadgetImages: Record<string, HTMLImageElement> = {};
+      
+      // Get unique gadget IDs from elements
+      const gadgetIds = Array.from(new Set(
+        elements
+          .filter(el => el.type === 'gadget' && el.gadgetId)
+          .map(el => el.gadgetId!)
+      ));
+      
+      // Load images for each gadget
+      for (const gadgetId of gadgetIds) {
+        const gadget = getGadgetById(gadgetId);
+        if (gadget && gadget.image) {
+          try {
+            const img = new Image();
+            await new Promise<void>((resolve, reject) => {
+              img.onload = () => resolve();
+              img.onerror = () => reject();
+              img.src = gadget.image;
+            });
+            newGadgetImages[gadgetId] = img;
+          } catch (error) {
+            console.warn(`Failed to load gadget image for ${gadgetId}:`, error);
+          }
+        }
+      }
+      
+      setGadgetImages(newGadgetImages);
+    };
+    
+    loadGadgetImages();
+  }, [elements]);
 
   // Handle wheel zoom
   const handleWheel = useCallback((e: WheelEvent) => {
@@ -256,13 +293,56 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
             break;
             
           case 'gadget':
-            // Draw gadget as a small square
-            ctx.fillRect(
-              element.x - 10,
-              element.y - 10,
-              20,
-              20
-            );
+            // Draw gadget with icon and colored border
+            const gadget = element.gadgetId ? getGadgetById(element.gadgetId) : null;
+            const gadgetImage = element.gadgetId ? gadgetImages[element.gadgetId] : null;
+            
+            // Draw circular border based on team
+            const borderColor = element.team === 'attacker' ? '#ff4444' : '#4444ff';
+            const radius = 18;
+            
+            // Draw border circle
+            ctx.save();
+            ctx.strokeStyle = borderColor;
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(element.x, element.y, radius, 0, 2 * Math.PI);
+            ctx.stroke();
+            
+            // Draw background circle
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+            ctx.beginPath();
+            ctx.arc(element.x, element.y, radius - 2, 0, 2 * Math.PI);
+            ctx.fill();
+            
+            // Draw gadget icon if available
+            if (gadgetImage) {
+              const iconSize = 24;
+              ctx.save();
+              ctx.beginPath();
+              ctx.arc(element.x, element.y, radius - 3, 0, 2 * Math.PI);
+              ctx.clip();
+              
+              ctx.drawImage(
+                gadgetImage,
+                element.x - iconSize / 2,
+                element.y - iconSize / 2,
+                iconSize,
+                iconSize
+              );
+              ctx.restore();
+            } else {
+              // Fallback: draw a small colored square if image not loaded
+              ctx.fillStyle = borderColor;
+              ctx.fillRect(
+                element.x - 8,
+                element.y - 8,
+                16,
+                16
+              );
+            }
+            
+            ctx.restore();
             break;
         }
         
@@ -381,6 +461,43 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
         color: '#000000'
       };
       addElement(newText);
+    } else if (selectedTool === 'circle') {
+      // Add circle element
+      const newCircle: DrawableElement = {
+        id: `circle-${Date.now()}`,
+        type: 'circle',
+        x: worldX,
+        y: worldY,
+        radius: 30,
+        color: selectedTeam === 'attacker' ? '#ff4444' : '#4444ff',
+        strokeWidth: 2
+      };
+      addElement(newCircle);
+    } else if (selectedTool === 'line') {
+      // Add line element
+      const newLine: DrawableElement = {
+        id: `line-${Date.now()}`,
+        type: 'line',
+        x: worldX,
+        y: worldY,
+        points: [worldX, worldY, worldX + 50, worldY],
+        color: selectedTeam === 'attacker' ? '#ff4444' : '#4444ff',
+        strokeWidth: 3
+      };
+      addElement(newLine);
+    } else if (selectedTool === 'rectangle') {
+      // Add rectangle element
+      const newRectangle: DrawableElement = {
+        id: `rectangle-${Date.now()}`,
+        type: 'rectangle',
+        x: worldX,
+        y: worldY,
+        width: 60,
+        height: 40,
+        color: selectedTeam === 'attacker' ? '#ff4444' : '#4444ff',
+        strokeWidth: 2
+      };
+      addElement(newRectangle);
     } else if (selectedGadget) {
       // Add gadget element
       const newGadget: DrawableElement = {

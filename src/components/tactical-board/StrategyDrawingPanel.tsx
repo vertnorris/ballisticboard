@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useTacticalBoard } from '@/stores/tactical-board';
-import { PenTool, Minus, MoreHorizontal, Zap } from 'lucide-react';
+import { PenTool, Pen, MoreHorizontal, Zap } from 'lucide-react';
 
 interface StrategyStyle {
   id: string;
@@ -20,7 +20,7 @@ const strategyStyles: StrategyStyle[] = [
     name: 'Linha Sólida',
     color: 'var(--chart-3)',
     strokeWidth: 3,
-    icon: Minus,
+    icon: Pen,
   },
   {
     id: 'dashed',

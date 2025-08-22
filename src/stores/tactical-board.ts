@@ -218,7 +218,7 @@ export const useTacticalBoard = create<TacticalBoardState>((set, get) => ({
   getGadgetCount: (gadgetId: string) => {
     const { elements } = get();
     return elements.filter(el =>
-      el.type === 'rectangle' && el.gadgetId === gadgetId
+      el.type === 'gadget' && el.gadgetId === gadgetId
     ).length;
   },
 
@@ -246,7 +246,7 @@ export const useTacticalBoard = create<TacticalBoardState>((set, get) => ({
     const { elements, history, historyIndex, canAddGadget } = get();
 
     // Check gadget limits before adding
-    if (element.type === 'rectangle' && element.gadgetId) {
+    if (element.type === 'gadget' && element.gadgetId) {
       if (!canAddGadget(element.gadgetId)) {
         // Don't add if limit is reached
         return false;

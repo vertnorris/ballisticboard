@@ -33,9 +33,11 @@ export const isPointInBounds = (
 
 export const getElementBounds = (element: DrawableElement) => {
   const size = getElementSize(element);
+  const x = element.position?.x ?? element.x;
+  const y = element.position?.y ?? element.y;
   return {
-    x: element.position.x - size.width / 2,
-    y: element.position.y - size.height / 2,
+    x: x - size.width / 2,
+    y: y - size.height / 2,
     width: size.width,
     height: size.height,
   };

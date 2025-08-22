@@ -34,7 +34,7 @@ export interface Weapon {
 export interface Gadget {
   id: string;
   name: string;
-  type: 'grenade' | 'utility' | 'healing';
+  type: 'grenade' | 'utility' | 'healing' | 'tactical';
   cost: number;
   icon: string;
 }
@@ -114,5 +114,5 @@ export interface ToolConfig {
 }
 
 export type TeamType = 'attacker' | 'defender';
-export type ToolType = 'select' | 'player' | 'movement' | 'text' | 'area' | 'gadget' | 'erase' | 'pan' | 'circle' | 'rectangle' | 'line' | 'strategy';
+export type ToolType = 'select' | 'player' | 'gadget' | 'text' | 'rectangle' | 'circle' | 'line' | 'pan';
 export type GadgetType = 'breach-charge' | 'claymore' | 'impact-grenade' | 'smoke-grenade' | 'frag-grenade' | 'stun-grenade' | 'drone' | 'camera';

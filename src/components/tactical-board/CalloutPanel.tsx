@@ -29,7 +29,7 @@ export const CalloutPanel: React.FC<CalloutPanelProps> = ({ isOpen, onClose }) =
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <MapPin className="h-5 w-5" />
-            Gerenciar Callouts
+            Gerenciar Pontos de Referência
           </CardTitle>
           <Button variant="ghost" size="sm" onClick={onClose}>
             ×
@@ -109,17 +109,17 @@ export const CalloutPanel: React.FC<CalloutPanelProps> = ({ isOpen, onClose }) =
         {selectedMap.callouts.length === 0 && (
           <div className="text-center py-8 text-muted-foreground">
             <MapPin className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p className="text-sm">Nenhum callout disponível neste mapa</p>
+            <p className="text-sm">Nenhum ponto de referência disponível neste mapa</p>
           </div>
         )}
       </CardContent>
       
       <div className="p-4 border-t bg-muted/30">
         <div className="text-xs text-muted-foreground space-y-1">
-          <p>• Clique no ícone de olho para ocultar/mostrar callouts</p>
-          <p>• Clique no ícone de edição para ativar o modo de edição</p>
-          <p>• Arraste o callout diretamente no mapa para reposicioná-lo</p>
-          <p>• Clique no callout novamente para sair do modo de edição</p>
+          <p>• Clique no ícone de olho para ocultar/mostrar pontos de referência</p>
+            <p>• Clique no ícone de edição para mover um ponto de referência</p>
+            <p>• Arraste o ponto de referência diretamente no mapa para reposicioná-lo</p>
+            <p>• Clique no ponto de referência novamente para sair do modo de edição</p>
         </div>
       </div>
     </Card>

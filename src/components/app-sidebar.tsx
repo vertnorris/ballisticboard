@@ -3,22 +3,23 @@
 import * as React from "react"
 import Image from "next/image"
 import {
-  Target,
-  MousePointer,
+  ChevronUp,
+  User,
   Users,
-  Move,
-  Type,
-  Square,
-  Eraser,
+  Shield,
   Undo2,
   Redo2,
   RotateCcw,
   Save,
   Download,
-  Timer,
-  Settings,
-  PenTool,
   Hand,
+  Move,
+  Zap,
+  Square,
+  Circle,
+  Pen,
+  Type,
+  Settings,
 } from "lucide-react"
 
 import {
@@ -40,14 +41,14 @@ import { useTacticalBoard } from "@/stores/tactical-board"
 import { gadgets } from "@/data/gadgets"
 
 const tools = [
-  { id: 'select', name: 'Selecionar', icon: MousePointer, shortcut: 'V' },
-  { id: 'pan', name: 'Pan', icon: Hand, shortcut: 'H' },
+  { id: 'select', name: 'Ferramenta de Seleção', icon: Hand, shortcut: 'V' },
+  { id: 'pan', name: 'Navegação', icon: Move, shortcut: 'H' },
   { id: 'player', name: 'Jogador', icon: Users, shortcut: 'P' },
-  { id: 'movement', name: 'Movimento', icon: Move, shortcut: 'M' },
-  { id: 'strategy', name: 'Estratégia', icon: PenTool, shortcut: 'S' },
-  { id: 'text', name: 'Texto', icon: Type, shortcut: 'T' },
-  { id: 'area', name: 'Área', icon: Square, shortcut: 'A' },
-  { id: 'erase', name: 'Apagar', icon: Eraser, shortcut: 'E' },
+  { id: 'gadget', name: 'Gadget', icon: Zap, shortcut: 'G' },
+  { id: 'rectangle', name: 'Área Retangular', icon: Square, shortcut: 'R' },
+  { id: 'circle', name: 'Área Circular', icon: Circle, shortcut: 'C' },
+  { id: 'line', name: 'Linha de Movimento', icon: Pen, shortcut: 'L' },
+  { id: 'text', name: 'Anotação de Texto', icon: Type, shortcut: 'T' },
 ]
 
 const teams = [
@@ -117,18 +118,22 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <div className="flex items-center gap-2 px-2 py-2">
-          <div className="w-12 h-12 flex items-center justify-center">
+        <div className="flex items-center gap-2 px-2 py-1">
+          <div className="w-8 h-8 group-data-[collapsible=icon]:w-10 group-data-[collapsible=icon]:h-10 flex items-center justify-center">
             <Image
               src="/logosz.svg"
               alt="Ballistic Board Logo"
-              width={45}
-              height={45}
-              className="object-contain"
+              width={32}
+              height={32}
+              className="object-contain w-8 h-8 group-data-[collapsible=icon]:!w-10 group-data-[collapsible=icon]:!h-10"
+              style={{
+                width: 'auto',
+                height: 'auto'
+              }}
             />
           </div>
           <div className="group-data-[collapsible=icon]:hidden">
-            <h2 className="text-lg font-bold text-foreground">
+            <h2 className="text-sm font-bold text-foreground">
               Ballistic Board
             </h2>
             <p className="text-xs text-muted-foreground">Tactical Planner</p>
@@ -138,10 +143,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       
       <SidebarContent>
         {/* Ferramentas */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Ferramentas</SidebarGroupLabel>
+        <SidebarGroup className="py-1">
+          <SidebarGroupLabel className="text-xs px-2 py-1">Ferramentas</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="space-y-0.5">
               {tools.map((tool) => {
                 const Icon = tool.icon
                 return (
@@ -150,9 +155,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                       onClick={() => handleToolSelect(tool.id)}
                       isActive={selectedTool === tool.id}
                       tooltip={`${tool.name} (${tool.shortcut})`}
+                      className="h-8 px-2"
                     >
-                      <Icon className="h-4 w-4" />
-                      <span>{tool.name}</span>
+                      <Icon className="h-3.5 w-3.5" />
+                      <span className="text-sm">{tool.name}</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 )
@@ -161,13 +167,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <Separator />
+        <Separator className="my-1" />
 
         {/* Gadgets */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Gadgets</SidebarGroupLabel>
+        <SidebarGroup className="py-1">
+          <SidebarGroupLabel className="text-xs px-2 py-1">Gadgets</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="space-y-0.5">
               {gadgets.map((gadget) => {
                 const currentCount = getGadgetCount(gadget.id);
                 const maxCount = getGadgetLimit(gadget.id);
@@ -181,19 +187,19 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                       isActive={isActive}
                       disabled={isAtLimit && !isActive}
                       tooltip={`${gadget.name} (${gadget.duration}s) - ${currentCount}/${maxCount}`}
-                      className={isAtLimit && !isActive ? 'opacity-50 cursor-not-allowed' : ''}
+                      className={`h-8 px-2 ${isAtLimit && !isActive ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
-                      <div className="w-4 h-4 relative">
+                      <div className="w-3.5 h-3.5 relative">
                         <Image
                           src={gadget.image}
                           alt={gadget.name}
-                          width={16}
-                          height={16}
+                          width={14}
+                          height={14}
                           className="object-contain"
                         />
                       </div>
-                      <span className="group-data-[collapsible=icon]:hidden flex-1">{gadget.name}</span>
-                      <span className={`group-data-[collapsible=icon]:hidden text-xs px-1.5 py-0.5 rounded ${
+                      <span className="group-data-[collapsible=icon]:hidden flex-1 text-sm">{gadget.name}</span>
+                      <span className={`group-data-[collapsible=icon]:hidden text-xs px-1 py-0.5 rounded ${
                         isAtLimit ? 'bg-destructive text-destructive-foreground' :
                         currentCount > 0 ? 'bg-secondary text-secondary-foreground' :
                         'bg-muted text-muted-foreground'
@@ -208,22 +214,23 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <Separator />
+        <Separator className="my-1" />
 
-        {/* Times */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Times</SidebarGroupLabel>
+        {/* Times & Ações */}
+        <SidebarGroup className="py-1">
+          <SidebarGroupLabel className="text-xs px-2 py-1">Times</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="space-y-0.5">
               {teams.map((team) => (
                 <SidebarMenuItem key={team.id}>
                   <SidebarMenuButton
                     onClick={() => handleTeamSelect(team.id)}
                     isActive={selectedTeam === team.id}
                     tooltip={team.name}
+                    className="h-8 px-2"
                   >
-                    <div className={`w-4 h-4 rounded-full ${team.color}`} />
-                    <span>{team.name}</span>
+                    <div className={`w-3.5 h-3.5 rounded-full ${team.color}`} />
+                    <span className="text-sm">{team.name}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -231,15 +238,41 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </SidebarGroupContent>
         </SidebarGroup>
 
+        <Separator className="my-1" />
+
+        {/* Ações */}
+        <SidebarGroup className="py-1">
+          <SidebarGroupLabel className="text-xs px-2 py-1">Ações</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu className="space-y-0.5">
+              {actions.map((action) => {
+                const Icon = action.icon
+                return (
+                  <SidebarMenuItem key={action.id}>
+                    <SidebarMenuButton
+                      onClick={() => handleAction(action.id)}
+                      tooltip={action.shortcut ? `${action.name} (${action.shortcut})` : action.name}
+                      className="h-8 px-2"
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                      <span className="text-sm">{action.name}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
 
       </SidebarContent>
 
-      <SidebarFooter>
+      <SidebarFooter className="py-1">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton tooltip="Configurações">
-              <Settings className="h-4 w-4" />
-              <span>Configurações</span>
+            <SidebarMenuButton tooltip="Configurações" className="h-8 px-2">
+              <Settings className="h-3.5 w-3.5" />
+              <span className="text-sm">Configurações</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

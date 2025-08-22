@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { gadgets } from '@/data/gadgets';
 import { useTacticalBoard } from '@/stores/tactical-board';
-import { Target } from 'lucide-react';
+import { Zap } from 'lucide-react';
 
 export function GadgetSelector() {
   const {
@@ -35,7 +35,7 @@ export function GadgetSelector() {
                   isAtLimit && !isSelected ? 'opacity-50 cursor-not-allowed' : ''
                 }`}
               >
-                <Target className="w-4 h-4" />
+                <Zap className="w-4 h-4" />
                 <span className="truncate">{gadget.name}</span>
               </Button>
               <Badge

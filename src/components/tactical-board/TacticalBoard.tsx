@@ -5,8 +5,8 @@ import { AppSidebar } from '@/components/app-sidebar';
 import { MapSelector } from '@/components/maps/MapSelector';
 import { useTacticalBoard } from '@/stores/tactical-board';
 import { useCanvasSize } from '@/hooks/use-canvas-size';
-import { TacticalElement } from '@/types/tactical';
-import { Lightbulb } from 'lucide-react';
+import { DrawableElement } from '@/types';
+
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -24,6 +24,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -38,8 +39,8 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from '@/components/ui/sidebar';
-import { ZoomIn, ZoomOut, Maximize, Target, Users, Zap, Undo2, Redo2, RotateCcw, Save, Download, Loader2, Check, Minimize2, Maximize2, ChevronDown } from 'lucide-react';
-// import { GadgetSelector } from './GadgetSelector';
+import { ZoomIn, ZoomOut, Maximize, Target, Users, Zap, Undo2, Redo2, RotateCcw, Save, Download, Loader2, Check, ChevronDown, Square, Circle, Type, Pen, Hand, Lightbulb } from 'lucide-react';
+
 import { StrategyManager } from './StrategyManager';
 import { GadgetCounter } from './GadgetCounter';
 import { StrategyDrawingPanel } from './StrategyDrawingPanel';
@@ -50,11 +51,8 @@ import { Onboarding } from './Onboarding';
 import { KonvaCanvas } from './KonvaCanvas';
 
 export const TacticalBoard: React.FC = () => {
-  const canvasSize = useCanvasSize();
-  
   const {
     selectedMap,
-    setSelectedMap,
     selectedTool,
     setSelectedTool,
     selectedTeam,
@@ -63,110 +61,134 @@ export const TacticalBoard: React.FC = () => {
     setSelectedGadget,
     elements,
     selectedElements,
+    setSelectedElements,
+    addElement,
+    updateElement,
+    removeElement,
+    clearElements,
+    undo,
+    redo,
+    historyIndex,
+    history,
+    reset,
     zoom,
     setZoom,
     pan,
     setPan,
-    selectElements,
-    clearSelection,
-    reset,
-    undo,
-    redo,
     showOnboarding,
     setShowOnboarding,
-    getGadgetCount,
-    getGadgetLimit,
   } = useTacticalBoard();
 
-  const [actionStatus, setActionStatus] = useState<{
-    saving?: boolean
-    exporting?: boolean
-    lastSaved?: Date
-    lastExported?: Date
-    showStatus?: boolean
-  }>({})
-  const [isCompactMode, setIsCompactMode] = useState(false);
+  const canvasSize = useCanvasSize();
 
-  // Auto-hide status indicator after 3 seconds
+  const [actionStatus, setActionStatus] = useState({
+    saving: false,
+    lastSaved: false,
+    exporting: false,
+    lastExported: false,
+  });
+
+  // Keyboard shortcuts
   useEffect(() => {
-    if (actionStatus.lastSaved || actionStatus.lastExported) {
-      setActionStatus(prev => ({ ...prev, showStatus: true }))
-      
-      const timer = setTimeout(() => {
-        setActionStatus(prev => ({ ...prev, showStatus: false }))
-      }, 3000)
-      
-      return () => clearTimeout(timer)
-    }
-  }, [actionStatus.lastSaved, actionStatus.lastExported]);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        switch (e.key) {
+          case 'z':
+            e.preventDefault();
+            if (e.shiftKey) {
+              redo();
+            } else {
+              undo();
+            }
+            break;
+          case 'y':
+            e.preventDefault();
+            redo();
+            break;
+          case 's':
+            e.preventDefault();
+            handleSave();
+            break;
+          case 'e':
+            e.preventDefault();
+            handleExport();
+            break;
+          case 'Delete':
+            e.preventDefault();
+            if (confirm('Tem certeza que deseja limpar tudo?')) {
+              reset();
+            }
+            break;
+        }
+      } else {
+        switch (e.key) {
+          case 'v':
+            setSelectedTool('select');
+            break;
+          case 'p':
+            setSelectedTool('player');
+            break;
+          case 'g':
+            setSelectedTool('gadget');
+            break;
+          case 'r':
+            setSelectedTool('rectangle');
+            break;
+          case 'c':
+            setSelectedTool('circle');
+            break;
+          case 'l':
+            setSelectedTool('line');
+            break;
+          case 't':
+            setSelectedTool('text');
+            break;
+          case '+':
+          case '=':
+            e.preventDefault();
+            handleZoomIn();
+            break;
+          case '-':
+            e.preventDefault();
+            handleZoomOut();
+            break;
+          case '0':
+            e.preventDefault();
+            handleResetView();
+            break;
+        }
+      }
+    };
 
-  // Canvas size is now handled by the useCanvasSize hook
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [undo, redo, reset, setSelectedTool]);
 
-  const handleZoomIn = () => {
-    setZoom(zoom * 1.2);
+  const handleSave = async () => {
+    setActionStatus(prev => ({ ...prev, saving: true, lastSaved: false }));
+    // Simulate save operation
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    setActionStatus(prev => ({ ...prev, saving: false, lastSaved: true }));
+    setTimeout(() => {
+      setActionStatus(prev => ({ ...prev, lastSaved: false }));
+    }, 2000);
   };
 
-  const handleZoomOut = () => {
-    setZoom(zoom / 1.2);
+  const handleExport = async () => {
+    setActionStatus(prev => ({ ...prev, exporting: true, lastExported: false }));
+    // Simulate export operation
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    setActionStatus(prev => ({ ...prev, exporting: false, lastExported: true }));
+    setTimeout(() => {
+      setActionStatus(prev => ({ ...prev, lastExported: false }));
+    }, 2000);
   };
 
+  const handleZoomIn = () => setZoom(Math.min(3, zoom + 0.1));
+  const handleZoomOut = () => setZoom(Math.max(0.1, zoom - 0.1));
   const handleResetView = () => {
     setZoom(1);
     setPan({ x: 0, y: 0 });
-  };
-
-  const handleSave = async () => {
-    setActionStatus(prev => ({ ...prev, saving: true }))
-    
-    try {
-      const data = {
-        elements,
-        zoom,
-        pan,
-        selectedMap: selectedMap?.id || 'default'
-      }
-      localStorage.setItem('tactical-board-data', JSON.stringify(data))
-      
-      // Simular um pequeno delay para mostrar o feedback
-      await new Promise(resolve => setTimeout(resolve, 500))
-      
-      setActionStatus(prev => ({ 
-        ...prev, 
-        saving: false, 
-        lastSaved: new Date() 
-      }))
-      
-      console.log('Board saved!')
-    } catch (error) {
-      setActionStatus(prev => ({ ...prev, saving: false }))
-      console.error('Error saving board:', error)
-    }
-  }
-
-  const handleExport = async () => {
-    setActionStatus(prev => ({ ...prev, exporting: true }))
-    
-    try {
-      // Simular um pequeno delay para mostrar o feedback
-      await new Promise(resolve => setTimeout(resolve, 800))
-      
-      // TODO: Implement actual canvas export functionality
-      const link = document.createElement('a')
-      link.download = 'tactical-board.png'
-      // link.href = canvas.toDataURL()
-      // link.click()
-      
-      setActionStatus(prev => ({ 
-        ...prev, 
-        exporting: false, 
-        lastExported: new Date() 
-      }))
-      
-      console.log('Board exported!')
-    } catch (error) {
-      setActionStatus(prev => ({ ...prev, exporting: false }))
-      console.error('Error exporting board:', error)
-    }
   };
 
   return (
@@ -174,510 +196,439 @@ export const TacticalBoard: React.FC = () => {
       <SidebarProvider>
         <AppSidebar />
         <SidebarInset>
-          <header className={`flex shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12 ${isCompactMode ? 'h-12' : 'h-16'}`}>
+          <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
             <div className="flex items-center gap-2 px-4">
               <SidebarTrigger className="-ml-1" />
               <Separator orientation="vertical" className="mr-2 h-4" />
-              {!isCompactMode && (
-                <Breadcrumb>
-                  <BreadcrumbList>
-                    <BreadcrumbItem className="hidden md:block">
-                      <BreadcrumbLink href="#">
-                        Ballistic Board
-                      </BreadcrumbLink>
-                    </BreadcrumbItem>
-                    <BreadcrumbSeparator className="hidden md:block" />
-                    <BreadcrumbItem>
-                      <BreadcrumbPage>Tactical Board</BreadcrumbPage>
-                    </BreadcrumbItem>
-                  </BreadcrumbList>
-                </Breadcrumb>
-              )}
-              {isCompactMode && (
-                <div className="flex items-center gap-2">
-                  <h1 className="text-lg font-semibold">Tactical Board</h1>
-                </div>
-              )}
+              <Breadcrumb>
+                <BreadcrumbList>
+                  <BreadcrumbItem className="hidden md:block">
+                    <BreadcrumbLink href="#">
+                      BallisticBoard
+                    </BreadcrumbLink>
+                  </BreadcrumbItem>
+                  <BreadcrumbSeparator className="hidden md:block" />
+                  <BreadcrumbItem>
+                    <BreadcrumbPage>Quadro Tático</BreadcrumbPage>
+                  </BreadcrumbItem>
+                </BreadcrumbList>
+              </Breadcrumb>
             </div>
           </header>
-          
+
           <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-            {/* Map Selection */}
-            <div className="min-h-[100vh] flex-1 rounded-xl bg-muted/50 md:min-h-min">
-              {/* Header Principal */}
-              <div className="flex items-center justify-between p-6 border-b bg-gradient-to-r from-background to-muted/20">
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-3">
-                    <MapSelector />
-                    <div className="h-6 w-px bg-border/60" />
-                    <div>
-                      <h1 className="text-xl font-bold tracking-tight">Tactical Board</h1>
-                      <p className="text-sm text-muted-foreground">Planeje suas estratégias táticas</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <StrategyManager />
-                  <div className="h-6 w-px bg-border/60" />
-                  
-                  {/* Status Indicator */}
-                  {actionStatus.showStatus && (actionStatus.lastSaved || actionStatus.lastExported) && (
-                    <div className="flex items-center gap-2 px-3 py-1 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800 animate-in fade-in-0 slide-in-from-right-2 duration-300">
-                      <Check className="h-3 w-3 text-green-600 dark:text-green-400" />
-                      <span className="text-xs text-green-700 dark:text-green-300 font-medium">
-                        {actionStatus.lastSaved && actionStatus.lastExported ? (
-                          actionStatus.lastSaved > actionStatus.lastExported ? 'Salvo' : 'Exportado'
-                        ) : actionStatus.lastSaved ? (
-                          'Salvo'
-                        ) : (
-                          'Exportado'
-                        )}
-                      </span>
-                    </div>
-                  )}
-                  
-                  <div className="h-6 w-px bg-border/60" />
-                  
-                  {/* Compact Mode Toggle */}
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                         variant="ghost"
-                         size="sm"
-                         onClick={() => setIsCompactMode(!isCompactMode)}
-                         className={`p-0 transition-all duration-200 ${isCompactMode ? 'h-6 w-6' : 'h-8 w-8'}`}
-                       >
-                         {isCompactMode ? <Maximize2 className={`transition-all duration-200 ${isCompactMode ? 'h-3 w-3' : 'h-4 w-4'}`} /> : <Minimize2 className={`transition-all duration-200 ${isCompactMode ? 'h-3 w-3' : 'h-4 w-4'}`} />}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>{isCompactMode ? 'Modo Normal' : 'Modo Compacto'}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                  
-                  <div className="h-6 w-px bg-border/60" />
-                  <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/50 rounded-lg border">
-                    <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse" />
-                    <span className="text-sm font-medium">Elementos: {elements.length}</span>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Toolbar */}
-              <div className={`flex flex-col lg:flex-row lg:items-center lg:justify-between border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 transition-all duration-200 ${isCompactMode ? 'p-1 gap-1 lg:gap-2' : 'p-4 gap-4 lg:gap-0'}`}>
-                <div className={`flex flex-wrap items-center transition-all duration-200 ${isCompactMode ? 'gap-1 lg:gap-2' : 'gap-2 lg:gap-4'}`}>
-                  {/* Grupo 1: Ferramentas de Seleção */}
-                  <div className="flex flex-col gap-1">
-                    {!isCompactMode && <span className="text-xs font-medium text-muted-foreground px-2 hidden sm:block">Ferramentas</span>}
-                    <div className={`flex items-center gap-1 bg-muted/80 rounded-lg border transition-all duration-200 ${isCompactMode ? 'p-0.5' : 'p-1'}`}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                             variant={selectedTool === 'select' ? 'default' : 'ghost'}
-                             size="sm"
-                             onClick={() => setSelectedTool('select')}
-                             className={`p-0 transition-all duration-200 ${isCompactMode ? 'h-6 w-6' : 'h-8 w-8'}`}
-                           >
-                             <Target className={`transition-all duration-200 ${isCompactMode ? 'h-3 w-3' : 'h-4 w-4'}`} />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Selecionar <kbd className="ml-1 px-1 py-0.5 text-xs bg-muted rounded">V</kbd></p>
-                        </TooltipContent>
-                      </Tooltip>
-                      
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                             variant={selectedTool === 'target' ? 'default' : 'ghost'}
-                             size="sm"
-                             onClick={() => setSelectedTool('target')}
-                             className={`p-0 transition-all duration-200 ${isCompactMode ? 'h-6 w-6' : 'h-8 w-8'}`}
-                           >
-                             <Users className={`transition-all duration-200 ${isCompactMode ? 'h-3 w-3' : 'h-4 w-4'}`} />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Adicionar Jogador <kbd className="ml-1 px-1 py-0.5 text-xs bg-muted rounded">P</kbd></p>
-                        </TooltipContent>
-                      </Tooltip>
-                      
-                      <DropdownMenu>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant={selectedTool === 'gadget' ? 'default' : 'ghost'}
-                                size="sm"
-                                className={`p-0 transition-all duration-200 ${isCompactMode ? 'h-6 w-6' : 'h-8 w-8'}`}
-                              >
-                                <Zap className={`transition-all duration-200 ${isCompactMode ? 'h-3 w-3' : 'h-4 w-4'}`} />
-                              </Button>
-                            </DropdownMenuTrigger>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Selecionar Gadget <kbd className="ml-1 px-1 py-0.5 text-xs bg-muted rounded">G</kbd></p>
-                          </TooltipContent>
-                        </Tooltip>
-                        
-                        <DropdownMenuContent align="start" className="w-64">
-                          <DropdownMenuLabel>Selecionar Gadget</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          {gadgets.map((gadget) => {
-                             const isSelected = selectedGadget === gadget.id;
-                             const currentCount = getGadgetCount(gadget.id);
-                             const maxCount = getGadgetLimit(gadget.id);
-                             const isAtLimit = currentCount >= maxCount;
-                             
-                             return (
-                               <DropdownMenuItem
-                                 key={gadget.id}
-                                 className={`flex items-center gap-3 p-3 cursor-pointer ${
-                                   isSelected ? 'bg-accent' : ''
-                                 } ${isAtLimit ? 'opacity-50' : ''}`}
-                                 onSelect={() => {
-                                   setSelectedTool('gadget');
-                                   setSelectedGadget(gadget.id);
-                                 }}
-                                 disabled={isAtLimit}
-                               >
-                                 <div className="w-8 h-8 rounded border bg-muted flex items-center justify-center overflow-hidden">
-                                   <img
-                                     src={gadget.image}
-                                     alt={gadget.name}
-                                     className="w-full h-full object-cover"
-                                   />
-                                 </div>
-                                 <div className="flex-1">
-                                   <div className="font-medium text-sm">{gadget.name}</div>
-                                   <div className="text-xs text-muted-foreground">{gadget.description}</div>
-                                 </div>
-                                 <div className={`text-xs px-2 py-1 rounded ${
-                                   isAtLimit ? 'bg-destructive text-destructive-foreground' :
-                                   currentCount > 0 ? 'bg-secondary text-secondary-foreground' :
-                                   'bg-muted text-muted-foreground'
-                                 }`}>
-                                   {currentCount}/{maxCount}
-                                 </div>
-                               </DropdownMenuItem>
-                             );
-                           })}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                      
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                             variant={selectedTool === 'element' ? 'default' : 'ghost'}
-                             size="sm"
-                             onClick={() => setSelectedTool('element')}
-                             className={`p-0 transition-all duration-200 ${isCompactMode ? 'h-6 w-6' : 'h-8 w-8'}`}
-                           >
-                             <Lightbulb className={`transition-all duration-200 ${isCompactMode ? 'h-3 w-3' : 'h-4 w-4'}`} />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Adicionar Elemento <kbd className="ml-1 px-1 py-0.5 text-xs bg-muted rounded">E</kbd></p>
-                        </TooltipContent>
-                      </Tooltip>
-                      
-                      {selectedTool === 'gadget' && selectedGadget && (
-                        <div className="ml-2 pl-2 border-l">
-                          <GadgetCounter />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {/* Separador */}
-                  <div className="h-12 w-px bg-border/60 hidden lg:block" />
-                  
-                  {/* Grupo 2: Seleção de Time */}
-                  <div className="flex flex-col gap-1">
-                    {!isCompactMode && <span className="text-xs font-medium text-muted-foreground px-2 hidden sm:block">Time</span>}
-                    <div className={`flex items-center gap-1 bg-muted/80 rounded-lg border transition-all duration-200 ${isCompactMode ? 'p-0.5' : 'p-1'}`}>
-                      <Button
-                        variant={selectedTeam === 'attacker' ? 'default' : 'ghost'}
-                        size="sm"
-                        onClick={() => setSelectedTeam('attacker')}
-                        className={`text-xs font-medium transition-all ${isCompactMode ? 'h-6 px-2' : 'h-8 px-2 sm:px-3'}`}
-                      >
-                        <span className="sm:hidden">🔴</span>
-                        <span className="hidden sm:inline">🔴 Ataque</span>
-                      </Button>
-                      <Button
-                        variant={selectedTeam === 'defender' ? 'default' : 'ghost'}
-                        size="sm"
-                        onClick={() => setSelectedTeam('defender')}
-                        className={`text-xs font-medium transition-all ${isCompactMode ? 'h-6 px-2' : 'h-8 px-2 sm:px-3'}`}
-                      >
-                        <span className="sm:hidden">🔵</span>
-                        <span className="hidden sm:inline">🔵 Defesa</span>
-                      </Button>
-                    </div>
-                  </div>
-                </div>
 
-                <div className={`flex flex-wrap items-center justify-end lg:justify-start transition-all duration-200 ${isCompactMode ? 'gap-1 lg:gap-2' : 'gap-2 lg:gap-4'}`}>
-                  {/* Grupo 3: Controles de Ação */}
-                  <div className="flex flex-col gap-1">
-                    {!isCompactMode && <span className="text-xs font-medium text-muted-foreground px-2 hidden sm:block">Ações</span>}
-                    <div className="flex items-center gap-1 bg-muted/80 rounded-lg p-1 border">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={undo}
-                            className={`p-0 transition-all duration-200 ${isCompactMode ? 'h-6 w-6' : 'h-8 w-8'}`}
-                          >
-                            <Undo2 className={`transition-all duration-200 ${isCompactMode ? 'h-3 w-3' : 'h-4 w-4'}`} />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Desfazer <kbd className="ml-1 px-1 py-0.5 text-xs bg-muted rounded">Ctrl+Z</kbd></p>
-                        </TooltipContent>
-                      </Tooltip>
 
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={redo}
-                            className={`p-0 transition-all duration-200 ${isCompactMode ? 'h-6 w-6' : 'h-8 w-8'}`}
-                          >
-                            <Redo2 className={`transition-all duration-200 ${isCompactMode ? 'h-3 w-3' : 'h-4 w-4'}`} />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Refazer <kbd className="ml-1 px-1 py-0.5 text-xs bg-muted rounded">Ctrl+Y</kbd></p>
-                        </TooltipContent>
-                      </Tooltip>
-
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={reset}
-                            className={`p-0 transition-all duration-200 ${isCompactMode ? 'h-6 w-6' : 'h-8 w-8'}`}
-                          >
-                            <RotateCcw className={`transition-all duration-200 ${isCompactMode ? 'h-3 w-3' : 'h-4 w-4'}`} />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Limpar Tudo <kbd className="ml-1 px-1 py-0.5 text-xs bg-muted rounded">Ctrl+R</kbd></p>
-                        </TooltipContent>
-                      </Tooltip>
-
-                      <div className="h-4 w-px bg-border/60 mx-1 hidden sm:block" />
-
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={handleSave}
-                            disabled={actionStatus.saving}
-                            className={`p-0 transition-all duration-200 ${isCompactMode ? 'h-6 w-6' : 'h-8 w-8'}`}
-                          >
-                            {actionStatus.saving ? (
-                              <Loader2 className={`animate-spin transition-all duration-200 ${isCompactMode ? 'h-3 w-3' : 'h-4 w-4'}`} />
-                            ) : actionStatus.lastSaved ? (
-                              <Check className={`text-green-500 transition-all duration-200 ${isCompactMode ? 'h-3 w-3' : 'h-4 w-4'}`} />
-                            ) : (
-                              <Save className={`transition-all duration-200 ${isCompactMode ? 'h-3 w-3' : 'h-4 w-4'}`} />
-                            )}
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Salvar <kbd className="ml-1 px-1 py-0.5 text-xs bg-muted rounded">Ctrl+S</kbd></p>
-                        </TooltipContent>
-                      </Tooltip>
-
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={handleExport}
-                            disabled={actionStatus.exporting}
-                            className={`p-0 transition-all duration-200 ${isCompactMode ? 'h-6 w-6' : 'h-8 w-8'}`}
-                          >
-                            {actionStatus.exporting ? (
-                              <Loader2 className={`animate-spin transition-all duration-200 ${isCompactMode ? 'h-3 w-3' : 'h-4 w-4'}`} />
-                            ) : actionStatus.lastExported ? (
-                              <Check className={`text-green-500 transition-all duration-200 ${isCompactMode ? 'h-3 w-3' : 'h-4 w-4'}`} />
-                            ) : (
-                              <Download className={`transition-all duration-200 ${isCompactMode ? 'h-3 w-3' : 'h-4 w-4'}`} />
-                            )}
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Exportar <kbd className="ml-1 px-1 py-0.5 text-xs bg-muted rounded">Ctrl+E</kbd></p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
+            {/* Toolbar - Reorganized in 2 lines */}
+            <div className="bg-card border rounded-lg p-3 shadow-sm">
+              {/* First Line: Tools */}
+              <div className="flex items-center justify-between gap-4 mb-3">
+                {/* Selection and Navigation */}
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant={selectedTool === 'select' ? 'default' : 'ghost'}
+                          size="sm"
+                          onClick={() => setSelectedTool('select')}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Hand className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Ferramenta de Seleção <kbd className="ml-1 px-1 py-0.5 text-xs bg-muted rounded">V</kbd></p>
+                      </TooltipContent>
+                    </Tooltip>
                   </div>
 
-                  {/* Separador */}
-                  <div className="h-12 w-px bg-border/60 hidden lg:block" />
+                  <div className="h-6 w-px bg-border" />
 
-                  {/* Grupo 4: Controles de Zoom */}
-                  <div className="flex flex-col gap-1">
-                    {!isCompactMode && <span className="text-xs font-medium text-muted-foreground px-2 hidden sm:block">Visualização</span>}
-                    <div className="flex items-center gap-1 bg-muted/80 rounded-lg p-1 border">
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={handleZoomOut}
-                            className={`p-0 transition-all duration-200 ${isCompactMode ? 'h-6 w-6' : 'h-8 w-8'}`}
-                          >
-                            <ZoomOut className={`transition-all duration-200 ${isCompactMode ? 'h-3 w-3' : 'h-4 w-4'}`} />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Diminuir Zoom <kbd className="ml-1 px-1 py-0.5 text-xs bg-muted rounded">-</kbd></p>
-                        </TooltipContent>
-                      </Tooltip>
-                      
-                      <div className="px-2 sm:px-3 py-1 text-sm font-mono bg-background/50 rounded border min-w-[50px] sm:min-w-[60px] text-center">
-                        <span className="sm:hidden">{Math.round(zoom * 100)}</span>
-                        <span className="hidden sm:inline">{Math.round(zoom * 100)}%</span>
-                      </div>
-                      
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={handleZoomIn}
-                            className={`p-0 transition-all duration-200 ${isCompactMode ? 'h-6 w-6' : 'h-8 w-8'}`}
-                          >
-                            <ZoomIn className={`transition-all duration-200 ${isCompactMode ? 'h-3 w-3' : 'h-4 w-4'}`} />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Aumentar Zoom <kbd className="ml-1 px-1 py-0.5 text-xs bg-muted rounded">+</kbd></p>
-                        </TooltipContent>
-                      </Tooltip>
-                      
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={handleResetView}
-                            className={`p-0 transition-all duration-200 ${isCompactMode ? 'h-6 w-6' : 'h-8 w-8'}`}
-                          >
-                            <Maximize className={`transition-all duration-200 ${isCompactMode ? 'h-3 w-3' : 'h-4 w-4'}`} />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Ajustar à Tela <kbd className="ml-1 px-1 py-0.5 text-xs bg-muted rounded">0</kbd></p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
+                  {/* Game Elements */}
+                  <div className="flex items-center gap-1">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant={selectedTool === 'player' ? 'default' : 'ghost'}
+                          size="sm"
+                          onClick={() => setSelectedTool('player')}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Users className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Adicionar Jogador <kbd className="ml-1 px-1 py-0.5 text-xs bg-muted rounded">P</kbd></p>
+                      </TooltipContent>
+                    </Tooltip>
+
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant={selectedTool === 'gadget' ? 'default' : 'ghost'}
+                          size="sm"
+                          onClick={() => setSelectedTool('gadget')}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Zap className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Adicionar Gadget <kbd className="ml-1 px-1 py-0.5 text-xs bg-muted rounded">G</kbd></p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+
+                  <div className="h-6 w-px bg-border" />
+
+                  {/* Drawing Tools */}
+                  <div className="flex items-center gap-1">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant={selectedTool === 'rectangle' ? 'default' : 'ghost'}
+                          size="sm"
+                          onClick={() => setSelectedTool('rectangle')}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Square className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Área Retangular <kbd className="ml-1 px-1 py-0.5 text-xs bg-muted rounded">R</kbd></p>
+                      </TooltipContent>
+                    </Tooltip>
+
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant={selectedTool === 'circle' ? 'default' : 'ghost'}
+                          size="sm"
+                          onClick={() => setSelectedTool('circle')}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Circle className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Área Circular <kbd className="ml-1 px-1 py-0.5 text-xs bg-muted rounded">C</kbd></p>
+                      </TooltipContent>
+                    </Tooltip>
+
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant={selectedTool === 'line' ? 'default' : 'ghost'}
+                          size="sm"
+                          onClick={() => setSelectedTool('line')}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Pen className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Linha de Movimento <kbd className="ml-1 px-1 py-0.5 text-xs bg-muted rounded">L</kbd></p>
+                      </TooltipContent>
+                    </Tooltip>
+
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant={selectedTool === 'text' ? 'default' : 'ghost'}
+                          size="sm"
+                          onClick={() => setSelectedTool('text')}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Type className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Anotação de Texto <kbd className="ml-1 px-1 py-0.5 text-xs bg-muted rounded">T</kbd></p>
+                      </TooltipContent>
+                    </Tooltip>
                   </div>
                 </div>
               </div>
-              
-              {/* Canvas and Properties Area */}
-              <div className="p-4 relative flex-1 flex gap-4">
-                {/* Canvas Area */}
-                <div className="flex-1 flex flex-col">
-                  <div className="flex-1 flex items-center justify-center">
-                    {selectedMap ? (
-                      <div 
-                        className="border rounded-lg bg-background overflow-hidden shadow-sm"
-                        style={{ 
-                          width: canvasSize.width, 
-                          height: canvasSize.height,
-                          maxWidth: '100%',
-                          maxHeight: '100%'
-                        }}
-                      >
-                        <div className="relative w-full h-full">
-                          <KonvaCanvas
-                            width={canvasSize.width}
-                            height={canvasSize.height}
-                            currentMap={selectedMap}
-                            elements={elements}
-                            selectedTool={selectedTool}
-                            selectedGadget={selectedGadget ? {
-                              ...gadgets.find(g => g.id === selectedGadget)!,
-                              cost: 0,
-                              icon: gadgets.find(g => g.id === selectedGadget)?.image || ''
-                            } : undefined}
-                            selectedTeam={selectedTeam}
-                            selectedElements={elements.filter(el => selectedElements.includes(el.id))}
-                            zoom={zoom}
-                            pan={pan}
-                            setZoom={setZoom}
-                            setPan={setPan}
-                            setSelectedElements={(elements) => {
-                              const elementIds = elements.map(el => el.id);
-                              if (elementIds.length > 0) {
-                                selectElements(elementIds);
-                              } else {
-                                clearSelection();
-                              }
-                            }}
-                          />
 
-                        </div>
+              {/* Second Line: Team Selection and Controls */}
+              <div className="flex items-center justify-between gap-4">
+                {/* Team Selection */}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-muted-foreground">Time:</span>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant={selectedTeam === 'attack' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setSelectedTeam('attack')}
+                      className="h-7 px-3 text-xs"
+                    >
+                      Ataque
+                    </Button>
+                    <Button
+                      variant={selectedTeam === 'defense' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setSelectedTeam('defense')}
+                      className="h-7 px-3 text-xs"
+                    >
+                      Defesa
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Controls */}
+                <div className="flex items-center gap-2">
+                  {/* Actions */}
+                  <div className="flex items-center gap-1">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={undo}
+                          disabled={historyIndex <= 0}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Undo2 className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Desfazer <kbd className="ml-1 px-1 py-0.5 text-xs bg-muted rounded">Ctrl+Z</kbd></p>
+                      </TooltipContent>
+                    </Tooltip>
+                    
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={redo}
+                          disabled={historyIndex >= history.length - 1}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Redo2 className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Refazer <kbd className="ml-1 px-1 py-0.5 text-xs bg-muted rounded">Ctrl+Y</kbd></p>
+                      </TooltipContent>
+                    </Tooltip>
+                    
+                    <div className="h-6 w-px bg-border" />
+                    
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            if (confirm('Tem certeza que deseja limpar tudo?')) {
+                              reset();
+                            }
+                          }}
+                          className="h-8 w-8 p-0"
+                        >
+                          <RotateCcw className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Limpar Tudo <kbd className="ml-1 px-1 py-0.5 text-xs bg-muted rounded">Ctrl+Del</kbd></p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  
+                  <div className="h-6 w-px bg-border" />
+                  
+                  {/* Zoom */}
+                  <div className="flex items-center gap-1">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setZoom(Math.max(0.1, zoom - 0.1))}
+                          className="h-8 w-8 p-0"
+                        >
+                          <ZoomOut className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Diminuir Zoom <kbd className="ml-1 px-1 py-0.5 text-xs bg-muted rounded">-</kbd></p>
+                      </TooltipContent>
+                    </Tooltip>
+                    
+                    <span className="text-xs font-mono min-w-[3rem] text-center">
+                      {Math.round(zoom * 100)}%
+                    </span>
+                    
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setZoom(Math.min(3, zoom + 0.1))}
+                          className="h-8 w-8 p-0"
+                        >
+                          <ZoomIn className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Aumentar Zoom <kbd className="ml-1 px-1 py-0.5 text-xs bg-muted rounded">+</kbd></p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Main Content */}
+            <div className="flex-1 flex gap-4">
+              <div className="flex-1 flex flex-col">
+                <div className="flex-1 flex items-center justify-center">
+                  {selectedMap ? (
+                    <div 
+                      className="border rounded-lg bg-background overflow-hidden shadow-sm"
+                      style={{ 
+                        width: canvasSize.width, 
+                        height: canvasSize.height,
+                        maxWidth: '100%',
+                        maxHeight: '100%'
+                      }}
+                    >
+                      <div className="relative w-full h-full">
+                        <KonvaCanvas
+                          width={canvasSize.width}
+                          height={canvasSize.height}
+                          currentMap={selectedMap}
+                          elements={elements}
+                          selectedTool={selectedTool}
+                          selectedGadget={selectedGadget ? {
+                            ...gadgets.find(g => g.id === selectedGadget)!,
+                            cost: 0,
+                            icon: gadgets.find(g => g.id === selectedGadget)?.image || ''
+                          } : undefined}
+                          selectedTeam={selectedTeam}
+                          selectedElements={elements.filter(el => selectedElements.includes(el.id))}
+                          zoom={zoom}
+                          pan={pan}
+                          setZoom={setZoom}
+                          setPan={setPan}
+                          setSelectedElements={(elements) => {
+                            setSelectedElements(elements.map(el => el.id));
+                          }}
+                          onAddElement={addElement}
+                          onUpdateElement={updateElement}
+                          onRemoveElement={removeElement}
+                        />
                       </div>
-                    ) : (
-                      <div className="flex-1 flex items-center justify-center">
-                        <Card className="w-full max-w-lg mx-4">
+                    </div>
+                  ) : (
+                    <div className="flex-1 flex items-center justify-center min-h-[600px] bg-gradient-to-br from-background via-muted/20 to-background">
+                      <div className="w-full max-w-2xl mx-6">
+                        {/* Header Section */}
+                        <div className="text-center mb-8 pt-12">
+
+                          <h1 className="text-3xl font-bold mb-3 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+                            Selecione um Mapa
+                          </h1>
+                          <p className="text-lg text-muted-foreground max-w-md mx-auto leading-relaxed">
+                            Escolha o mapa onde você quer criar sua estratégia tática
+                          </p>
+                        </div>
+
+                        {/* Map Selector Card */}
+                        <Card className="mb-8 border-2 border-dashed border-muted-foreground/20 hover:border-primary/30 transition-all duration-300 shadow-xl bg-card/50 backdrop-blur-sm">
                           <CardContent className="p-8">
-                            <div className="text-center mb-6">
-                              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
-                                <Target className="w-8 h-8 text-primary" />
+                            <div className="flex flex-col items-center space-y-6">
+                              <div className="w-full max-w-sm">
+                                <MapSelector />
                               </div>
-                              <h2 className="text-2xl font-semibold mb-2">Selecione um Mapa</h2>
-                              <p className="text-muted-foreground">
-                                Escolha o mapa onde você quer criar sua estratégia tática
-                              </p>
-                            </div>
-
-                            <div className="mb-6 flex justify-center">
-                              <MapSelector />
-                            </div>
-
-                            <div className="text-center">
-                              <p className="text-xs text-muted-foreground">
-                                <Lightbulb className="inline w-4 h-4 mr-1" /> Após selecionar o mapa, você poderá adicionar jogadores, gadgets e anotações
-                              </p>
+                              
+                              {/* Quick Stats */}
+                              <div className="grid grid-cols-3 gap-4 w-full max-w-md">
+                                <div className="text-center p-3 rounded-lg bg-muted/30">
+                                  <div className="text-2xl font-bold text-primary">5</div>
+                                  <div className="text-xs text-muted-foreground">Mapas</div>
+                                </div>
+                                <div className="text-center p-3 rounded-lg bg-muted/30">
+                                  <div className="text-2xl font-bold text-green-500">∞</div>
+                                  <div className="text-xs text-muted-foreground">Estratégias</div>
+                                </div>
+                                <div className="text-center p-3 rounded-lg bg-muted/30">
+                                  <div className="text-2xl font-bold text-blue-500">10+</div>
+                                  <div className="text-xs text-muted-foreground">Ferramentas</div>
+                                </div>
+                              </div>
                             </div>
                           </CardContent>
                         </Card>
+
+                        {/* Features Preview */}
+                        <div className="grid md:grid-cols-2 gap-4 mb-8">
+                          <Card className="border border-muted-foreground/10 bg-card/30 backdrop-blur-sm">
+                            <CardContent className="p-4">
+                              <div className="flex items-start gap-3">
+                                <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                                  <Users className="w-4 h-4 text-blue-500" />
+                                </div>
+                                <div>
+                                  <h3 className="font-medium text-sm mb-1">Posicionamento de Jogadores</h3>
+                                  <p className="text-xs text-muted-foreground leading-relaxed">
+                                    Posicione atacantes e defensores com cores personalizadas
+                                  </p>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                          
+                          <Card className="border border-muted-foreground/10 bg-card/30 backdrop-blur-sm">
+                            <CardContent className="p-4">
+                              <div className="flex items-start gap-3">
+                                <div className="w-8 h-8 rounded-lg bg-yellow-500/10 flex items-center justify-center flex-shrink-0">
+                                  <Zap className="w-4 h-4 text-yellow-500" />
+                                </div>
+                                <div>
+                                  <h3 className="font-medium text-sm mb-1">Gadgets Táticos</h3>
+                                  <p className="text-xs text-muted-foreground leading-relaxed">
+                                    Adicione granadas, equipamentos e utilitários estratégicos
+                                  </p>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </div>
+
+                        {/* Bottom Tip */}
+                        <div className="text-center">
+                          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/5 border border-primary/10">
+                            <Lightbulb className="w-4 h-4 text-primary" />
+                            <span className="text-sm text-muted-foreground">
+                              Após selecionar o mapa, você terá acesso a todas as ferramentas de planejamento
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                    )}
-                  </div>
-
-                  {/* Strategy Drawing Panel */}
-                  <StrategyDrawingPanel />
+                    </div>
+                  )}
                 </div>
 
-                {/* Properties Panel */}
-                <div className="w-80 flex flex-col gap-4">
-                  <ElementPropertiesPanel 
-                    selectedElements={elements.filter(el => selectedElements.includes(el.id))}
-                  />
-                </div>
+                <StrategyDrawingPanel />
+              </div>
+
+              {/* Right Sidebar */}
+              <div className="w-80 flex flex-col gap-4">
+                <ElementPropertiesPanel 
+                  selectedElements={elements.filter(el => selectedElements.includes(el.id))}
+                />
+                <GadgetCounter />
+                <StrategyManager />
               </div>
             </div>
           </div>
         </SidebarInset>
       </SidebarProvider>
-      
-      {showOnboarding && (
-        <Onboarding onClose={() => setShowOnboarding(false)} />
-      )}
+
+      {showOnboarding && <Onboarding onClose={() => setShowOnboarding(false)} />}
     </TooltipProvider>
   );
 };

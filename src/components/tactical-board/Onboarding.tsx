@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { X, ChevronRight, ChevronLeft, Users, Zap, Type, Target, Move, Hand, Lightbulb } from 'lucide-react';
+import { X, ChevronRight, ChevronLeft, Users, Zap, Type, Target, Move, Hand, Lightbulb, Move3D, Square, Circle, Minus } from 'lucide-react';
 
 interface OnboardingProps {
   onClose: () => void;
@@ -31,12 +31,12 @@ const onboardingSteps = [
             <span className="text-sm">Adicionar gadgets</span>
           </div>
           <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
-            <Type className="w-5 h-5 text-green-500" />
-            <span className="text-sm">Inserir anotações</span>
+            <Square className="w-5 h-5 text-purple-500" />
+            <span className="text-sm">Desenhar áreas</span>
           </div>
           <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
-            <Move className="w-5 h-5 text-purple-500" />
-            <span className="text-sm">Desenhar movimentos</span>
+            <Type className="w-5 h-5 text-green-500" />
+            <span className="text-sm">Inserir anotações</span>
           </div>
         </div>
       </div>
@@ -64,7 +64,7 @@ const onboardingSteps = [
         <div className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg">
           <Lightbulb className="w-4 h-4 text-blue-500 mt-0.5" />
           <p className="text-sm text-blue-700 dark:text-blue-300">
-            Cada mapa possui callouts e pontos de spawn pré-definidos para facilitar o planejamento.
+            Cada mapa possui pontos de referência e pontos de spawn pré-definidos para facilitar o planejamento.
           </p>
         </div>
       </div>
@@ -80,33 +80,79 @@ const onboardingSteps = [
         <div className="grid gap-3">
           <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
             <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
+              <Move3D className="w-4 h-4 text-white" />
+            </div>
+            <div className="flex-1">
+              <div className="font-medium">Ferramenta de Seleção</div>
+              <div className="text-xs text-muted-foreground">Selecione e mova elementos no mapa</div>
+            </div>
+            <Badge variant="secondary">V</Badge>
+          </div>
+          
+          <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+            <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center">
               <Users className="w-4 h-4 text-white" />
             </div>
             <div className="flex-1">
-              <div className="font-medium">Adicionar Jogadores</div>
+              <div className="font-medium">Jogador</div>
               <div className="text-xs text-muted-foreground">Posicione atacantes e defensores no mapa</div>
             </div>
-            <Badge variant="secondary">Ativo</Badge>
+            <Badge variant="secondary">P</Badge>
           </div>
           
-          <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg opacity-60">
+          <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
             <div className="w-8 h-8 bg-yellow-500 rounded-lg flex items-center justify-center">
               <Zap className="w-4 h-4 text-white" />
             </div>
             <div className="flex-1">
-              <div className="font-medium">Adicionar Gadgets</div>
+              <div className="font-medium">Gadget</div>
               <div className="text-xs text-muted-foreground">Posicione equipamentos táticos</div>
             </div>
+            <Badge variant="secondary">G</Badge>
           </div>
           
-          <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg opacity-60">
-            <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center">
+          <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+            <div className="w-8 h-8 bg-purple-500 rounded-lg flex items-center justify-center">
+              <Square className="w-4 h-4 text-white" />
+            </div>
+            <div className="flex-1">
+              <div className="font-medium">Área Retangular</div>
+              <div className="text-xs text-muted-foreground">Desenhe áreas retangulares</div>
+            </div>
+            <Badge variant="secondary">R</Badge>
+          </div>
+          
+          <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+            <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center">
+              <Circle className="w-4 h-4 text-white" />
+            </div>
+            <div className="flex-1">
+              <div className="font-medium">Área Circular</div>
+              <div className="text-xs text-muted-foreground">Desenhe áreas circulares</div>
+            </div>
+            <Badge variant="secondary">C</Badge>
+          </div>
+          
+          <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+            <div className="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center">
+              <Minus className="w-4 h-4 text-white" />
+            </div>
+            <div className="flex-1">
+              <div className="font-medium">Linha de Movimento</div>
+              <div className="text-xs text-muted-foreground">Desenhe linhas de movimento</div>
+            </div>
+            <Badge variant="secondary">L</Badge>
+          </div>
+          
+          <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+            <div className="w-8 h-8 bg-teal-500 rounded-lg flex items-center justify-center">
               <Type className="w-4 h-4 text-white" />
             </div>
             <div className="flex-1">
-              <div className="font-medium">Adicionar Texto</div>
+              <div className="font-medium">Anotação de Texto</div>
               <div className="text-xs text-muted-foreground">Insira anotações e estratégias</div>
             </div>
+            <Badge variant="secondary">T</Badge>
           </div>
         </div>
         
