@@ -51,6 +51,8 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [mapImage, setMapImage] = useState<HTMLImageElement | null>(null);
   const [gadgetImages, setGadgetImages] = useState<Record<string, HTMLImageElement>>({});
+  const [loadingGadgets, setLoadingGadgets] = useState<Set<string>>(new Set());
+  const [animationFrame, setAnimationFrame] = useState(0);
   const [isPanning, setIsPanning] = useState(false);
   const [lastPanPoint, setLastPanPoint] = useState<{ x: number; y: number } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -95,10 +97,19 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
           .map(el => el.gadgetId!)
       ));
       
+      // Set loading state for new gadgets
+      const newLoadingGadgets = new Set<string>();
+      gadgetIds.forEach(id => {
+        if (!gadgetImages[id]) {
+          newLoadingGadgets.add(id);
+        }
+      });
+      setLoadingGadgets(newLoadingGadgets);
+      
       // Load images for each gadget
       for (const gadgetId of gadgetIds) {
         const gadget = getGadgetById(gadgetId);
-        if (gadget && gadget.image) {
+        if (gadget && gadget.image && !gadgetImages[gadgetId]) {
           try {
             const img = new Image();
             await new Promise<void>((resolve, reject) => {
@@ -107,17 +118,55 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
               img.src = gadget.image;
             });
             newGadgetImages[gadgetId] = img;
+            
+            // Remove from loading state
+            setLoadingGadgets(prev => {
+              const updated = new Set(prev);
+              updated.delete(gadgetId);
+              return updated;
+            });
           } catch (error) {
             console.warn(`Failed to load gadget image for ${gadgetId}:`, error);
+            // Remove from loading state even on error
+            setLoadingGadgets(prev => {
+              const updated = new Set(prev);
+              updated.delete(gadgetId);
+              return updated;
+            });
           }
+        } else if (gadgetImages[gadgetId]) {
+          // Use existing loaded image
+          newGadgetImages[gadgetId] = gadgetImages[gadgetId];
         }
       }
       
-      setGadgetImages(newGadgetImages);
+      setGadgetImages(prev => ({ ...prev, ...newGadgetImages }));
     };
     
     loadGadgetImages();
-  }, [elements]);
+  }, [elements, gadgetImages]);
+
+  // Animation loop for loading spinners
+  useEffect(() => {
+    let animationId: number;
+    
+    const animate = () => {
+      if (loadingGadgets.size > 0) {
+        setAnimationFrame(prev => prev + 1);
+        animationId = requestAnimationFrame(animate);
+      }
+    };
+    
+    if (loadingGadgets.size > 0) {
+      animationId = requestAnimationFrame(animate);
+    }
+    
+    return () => {
+      if (animationId) {
+        cancelAnimationFrame(animationId);
+      }
+    };
+  }, [loadingGadgets]);
 
   // Handle wheel zoom
   const handleWheel = useCallback((e: WheelEvent) => {
@@ -500,15 +549,77 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
                 iconSize,
                 iconSize
               );
+            } else if (element.gadgetId && loadingGadgets.has(element.gadgetId)) {
+              // Loading state: draw animated spinner
+              const time = Date.now() * 0.005;
+              const iconSize = 32;
+              
+              ctx.save();
+              ctx.translate(element.x, element.y);
+              ctx.rotate(time);
+              
+              // Draw spinning circle segments
+              ctx.strokeStyle = borderColor;
+              ctx.lineWidth = 3;
+              ctx.lineCap = 'round';
+              
+              for (let i = 0; i < 8; i++) {
+                const angle = (i / 8) * Math.PI * 2;
+                const opacity = 0.2 + (0.8 * ((i + time * 8) % 8) / 8);
+                
+                ctx.save();
+                ctx.globalAlpha = opacity;
+                ctx.rotate(angle);
+                
+                ctx.beginPath();
+                ctx.moveTo(6, 0);
+                ctx.lineTo(12, 0);
+                ctx.stroke();
+                
+                ctx.restore();
+              }
+              
+              ctx.restore();
             } else {
-              // Fallback: draw a small colored square if image not loaded
+              // Error state: draw icon placeholder with subtle styling
+              const iconSize = 16;
+              
+              ctx.save();
               ctx.fillStyle = borderColor;
-              ctx.fillRect(
-                element.x - 8,
-                element.y - 8,
-                16,
-                16
-              );
+              ctx.globalAlpha = 0.6;
+              
+              // Draw rounded rectangle (fallback for older browsers)
+               const x = element.x - iconSize / 2;
+               const y = element.y - iconSize / 2;
+               const radius = 3;
+               
+               ctx.beginPath();
+               if (typeof ctx.roundRect === 'function') {
+                 ctx.roundRect(x, y, iconSize, iconSize, radius);
+               } else {
+                 // Fallback for browsers without roundRect support
+                 ctx.moveTo(x + radius, y);
+                 ctx.lineTo(x + iconSize - radius, y);
+                 ctx.quadraticCurveTo(x + iconSize, y, x + iconSize, y + radius);
+                 ctx.lineTo(x + iconSize, y + iconSize - radius);
+                 ctx.quadraticCurveTo(x + iconSize, y + iconSize, x + iconSize - radius, y + iconSize);
+                 ctx.lineTo(x + radius, y + iconSize);
+                 ctx.quadraticCurveTo(x, y + iconSize, x, y + iconSize - radius);
+                 ctx.lineTo(x, y + radius);
+                 ctx.quadraticCurveTo(x, y, x + radius, y);
+                 ctx.closePath();
+               }
+               ctx.fill();
+              
+              // Draw question mark or gadget icon
+              ctx.fillStyle = '#ffffff';
+              ctx.globalAlpha = 0.8;
+              ctx.font = '12px sans-serif';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText('?', element.x, element.y);
+              
+              ctx.restore();
             }
             
             break;
@@ -1077,7 +1188,7 @@ export const KonvaCanvas: React.FC<KonvaCanvasProps> = ({
   // Update drawing when dependencies change
   useEffect(() => {
     draw();
-  }, [draw]);
+  }, [draw, animationFrame]);
 
   // Add native DOM event listeners for better mouse event handling
   useEffect(() => {
